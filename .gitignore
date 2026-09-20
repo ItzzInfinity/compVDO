@@ -10,3 +10,5 @@ ffmpeg_bin/
 .compvdo-tmp-*
 .compvdo-run.json
 samples/
+
+.obsidian

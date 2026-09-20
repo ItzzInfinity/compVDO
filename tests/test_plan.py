@@ -208,3 +208,47 @@ def test_rank_orders_by_estimated_saving():
     assert [e.info.path.name for e in ordered][0] == "big.mp4"
     assert ordered[-1].info.path.name == "lean.mp4" and ordered[-1].est_saving == 0
     assert [e.rank for e in ordered] == [0, 1, 2]
+
+
+# --- re-run guard ----------------------------------------------------------
+
+def test_existing_output_is_found_for_either_container():
+    from compvdo.plan import existing_output
+    have = {Path("/v/a_compressed.mkv")}
+    assert existing_output(Path("/v/a.mkv"), exists=lambda p: p in have) == Path("/v/a_compressed.mkv")
+
+
+def test_existing_output_is_none_when_absent():
+    from compvdo.plan import existing_output
+    assert existing_output(Path("/v/a.mp4"), exists=lambda p: False) is None
+
+
+def test_plan_jobs_skips_already_compressed_sources(info, tmp_path, monkeypatch):
+    # Guards the regression where re-running on a folder produced a second
+    # set of outputs named "... (2).mp4".
+    from compvdo.batch import plan_jobs
+    src = tmp_path / "clip.mp4"
+    src.write_bytes(b"x")
+    (tmp_path / "clip_compressed.mp4").write_bytes(b"x")
+    i = make_info(path=src)
+    specs, already = plan_jobs([i])
+    assert specs == [] and already and already[0][1].name == "clip_compressed.mp4"
+    specs, already = plan_jobs([i], again=True)
+    assert len(specs) == 1 and already == []
+
+
+def test_archive_forces_mkv_because_ffv1_is_illegal_in_mp4():
+    from compvdo.plan import target_container
+    assert target_container("mp4", "archive") == "mkv"
+    assert target_container("mp4", "archive", container="mp4") == "mkv"
+    assert target_container("mp4", "medium") == "mp4"
+    assert target_container("mp4", "medium", container="mkv") == "mkv"
+
+
+def test_existing_output_only_checks_the_container_being_produced():
+    from compvdo.plan import existing_output
+    have = {Path("/v/a_compressed.mp4")}
+    ex = lambda p: p in have
+    assert existing_output(Path("/v/a.mp4"), "mp4", exists=ex) is not None
+    # An archive run targets .mkv, so the existing .mp4 must not block it.
+    assert existing_output(Path("/v/a.mp4"), "mkv", exists=ex) is None

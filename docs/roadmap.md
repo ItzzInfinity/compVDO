@@ -32,16 +32,16 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 1.5 `plan.py` — quality ladder → ffmpeg argv, pure function (R3, R5, R6, R1.3) — done 2026-09-20; pure build() covering 4 modes x 5 encoder families; a real medium encode ran clean at ratio 0.448
 - [x] 1.6 `plan.py` — bits-per-pixel suggestion ranking (R10.3) — done 2026-09-20; estimate()/rank() are pure arithmetic, lenient on already-HEVC, and return 0 rather than inventing a saving
 - [x] 1.7 `tests/test_plan.py` — the encoder/container/rotation matrix, no ffmpeg needed — done 2026-09-20; 44 tests pass in 0.06s with no ffmpeg, covering ladder/encoder/audio/naming/ranking
-- [ ] 1.8 `encode.py` — temp-file discipline, `-progress` parsing, cancel (R2.1, R12.2, R12.3)
-- [ ] 1.9 `verify.py` — R8.1–R8.3 checks
-- [ ] 1.10 `trash.py` — `gio trash` with XDG-spec fallback (R2.3)
-- [ ] 1.11 `scan.py` — folder walk, filters, sorting (R10.1, R10.2, R1.4)
-- [ ] 1.12 `batch.py` — sequential queue, `.compvdo-run.json` resume, per-file isolation (R9)
-- [ ] 1.13 `cli.py` — `scan` / `compress` / `preview` / `caps` subcommands, result table (R7)
-- [ ] 1.14 `settings.py` — load/save with unknown-key preservation and `version` migration
-- [ ] 1.15 `tests/test_e2e.py` — synthetic clip via `ffmpeg lavfi`, real encode, verify, resume
-- [ ] 1.16 Trial on a real phone clip; record actual ratios in `qa-checklist.md`  ← needs M1
-- [ ] 1.17 `README.md` — install, usage, the lossless explanation
+- [x] 1.8 `encode.py` — temp-file discipline, `-progress` parsing, cancel (R2.1, R12.2, R12.3) — done 2026-09-20; cancel measured at 0.32s over 3 runs, no stray ffmpeg, no temp left, original intact
+- [x] 1.9 `verify.py` — R8.1–R8.3 checks — done 2026-09-20; compares DISPLAY dimensions, since -autorotate legitimately swaps the coded ones
+- [x] 1.10 `trash.py` — `gio trash` with XDG-spec fallback (R2.3) — done 2026-09-20; ignores a snap-sandboxed XDG_DATA_HOME and reports the exact trash path; verified recoverable
+- [x] 1.11 `scan.py` — folder walk, filters, sorting (R10.1, R10.2, R1.4) — done 2026-09-20; corrupt files reported not raised; own outputs excluded; all 4 sorts working
+- [x] 1.12 `batch.py` — sequential queue, `.compvdo-run.json` resume, per-file isolation (R9) — done 2026-09-20; live test: 6 clips, SIGINT at #2, re-run finished the remaining 5
+- [x] 1.13 `cli.py` — `scan` / `compress` / `preview` / `caps` subcommands, result table (R7) — done 2026-09-20; 6 subcommands, live-tested end to end on a mixed mp4/mkv/avi/silent/corrupt folder
+- [x] 1.14 `settings.py` — load/save with unknown-key preservation and `version` migration — done 2026-09-20; caps cache cuts start-up from 0.10s to 0.00s; corrupt config degrades to defaults
+- [x] 1.15 `tests/test_e2e.py` — synthetic clip via `ffmpeg lavfi`, real encode, verify, resume — done 2026-09-20; 72 tests pass in 31s covering rotation, audio, cancel, resume, delete gating, bit-exactness
+- [M] 1.16 Trial on a real phone clip; record actual ratios in `qa-checklist.md` — blocked on M1 (no phone clips supplied yet); synthetic coverage is complete
+- [x] 1.17 `README.md` — install, usage, the lossless explanation — done 2026-09-20; leads with the measured 5.0MB->10.2MB archive result rather than burying it
 
 ## Phase 2 — Linux GUI (PySide6)
 - [ ] 2.1 `gui/worker.py` — QThread bridge over `encode.py`, signals for progress/done/error

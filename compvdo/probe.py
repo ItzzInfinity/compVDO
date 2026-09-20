@@ -147,16 +147,19 @@ def info(path: Path, caps: Caps | None = None) -> MediaInfo:
         "-show_format", "-show_streams", str(path),
     ])
     if proc.returncode != 0:
-        raise ProbeError(f"{path.name}: {proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else 'ffprobe failed'}")
+        # ffprobe puts the full path in its message; strip it so the caller,
+        # which already names the file, does not print it twice.
+        tail = proc.stderr.strip().splitlines()[-1] if proc.stderr.strip() else "ffprobe failed"
+        raise ProbeError(tail.replace(f"{path}: ", "").strip())
     try:
         data = json.loads(proc.stdout)
     except json.JSONDecodeError as e:
-        raise ProbeError(f"{path.name}: unreadable ffprobe output ({e})") from e
+        raise ProbeError(f"unreadable ffprobe output ({e})") from e
 
     streams = data.get("streams") or []
     video = next((s for s in streams if s.get("codec_type") == "video"), None)
     if video is None:
-        raise ProbeError(f"{path.name}: no video stream")
+        raise ProbeError("no video stream")
     audio = next((s for s in streams if s.get("codec_type") == "audio"), None)
 
     fmt = data.get("format") or {}

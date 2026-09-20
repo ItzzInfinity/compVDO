@@ -22,7 +22,12 @@ Run before calling a phase done. Every line maps to a rule in
 - [ ] Cancel mid-encode: process gone within 1 s, temp file gone, original intact (R2.4, R12.2)
 - [ ] `--delete-original` on a clip that fails verification → both files survive (R8.4)
 - [ ] Deleted original is recoverable from the trash (R2.3)
-- [ ] `--mode archive` is bit-exact: `ffmpeg -i src -i dst -filter_complex psnr -f null -` → `inf`
+- [x] `--mode archive` is bit-exact — verified 2026-09-20 by comparing decoded
+      frame hashes, which is the reliable test:
+      `ffmpeg -v error -i F -map 0:v -pix_fmt yuv420p -f framemd5 - | grep -v '^#' | awk '{print $NF}' | md5sum`
+      must match for source and output. **Do not use the PSNR filter for this:**
+      the two files have different timebases, so psnr compares misaligned frames
+      and reports ~25 dB on files that are provably identical.
 - [ ] `--mode archive` printed the growth warning *before* running (R3.2)
 - [ ] A batch of 20 mixed clips: Ctrl-C at #7, re-run resumes at #7 (R9.2)
 - [ ] One corrupt file in a batch does not stop the other 19 (R9.3)

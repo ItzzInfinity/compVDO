@@ -105,6 +105,18 @@ def resolve_crf(encoder: str, mode: str, override: int | None) -> int | None:
 # Output naming (R1)
 # ---------------------------------------------------------------------------
 
+def target_container(src_ext: str, mode: str = "medium",
+                     container: str | None = None) -> str:
+    """The container this job will actually produce.
+
+    Archive mode forces MKV: FFV1 is not a legal MP4 codec, so honouring an
+    mp4 request there produces an ffmpeg error rather than an archive.
+    """
+    if mode == "archive":
+        return "mkv"
+    return (container or output_container(src_ext)).lstrip(".").lower()
+
+
 def output_path(src: Path, container: str | None = None, *, exists=Path.exists) -> Path:
     """`<stem>_compressed.<ext>` beside the original, never overwriting (R1.1/1.2).
 
@@ -119,6 +131,20 @@ def output_path(src: Path, container: str | None = None, *, exists=Path.exists) 
         candidate = src.with_name(f"{stem}_compressed ({n}).{ext}")
         n += 1
     return candidate
+
+
+def existing_output(src: Path, container: str | None = None,
+                    *, exists=Path.exists) -> Path | None:
+    """The `<stem>_compressed.<ext>` sibling, if one is already there.
+
+    Without this, re-running `compress` on a folder quietly produces
+    `clip_compressed (2).mp4` next to `clip_compressed.mp4` — the collision
+    rule in R1.2 is doing exactly what it should, but the result is a folder
+    full of duplicates. Callers skip these unless the user asks again.
+    """
+    ext = container or output_container(src.suffix.lstrip("."))
+    candidate = src.with_name(f"{src.stem}_compressed.{ext.lstrip('.')}")
+    return candidate if exists(candidate) else None
 
 
 def is_compressed_output(path: Path) -> bool:
