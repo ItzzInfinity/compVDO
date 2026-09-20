@@ -33,6 +33,7 @@ def _is_candidate(p: Path, include_compressed: bool) -> bool:
 def scan(root: Path, caps: Caps, *, mode: str = "medium", recursive: bool = True,
          include_compressed: bool = False,
          on_file: Callable[[int, int, Path], None] | None = None,
+         should_continue: Callable[[], bool] | None = None,
          ) -> tuple[list[ScanEntry], list[tuple[Path, str]]]:
     """Probe every candidate. Returns (ranked entries, skipped with reasons).
 
@@ -43,6 +44,8 @@ def scan(root: Path, caps: Caps, *, mode: str = "medium", recursive: bool = True
     infos: list[MediaInfo] = []
     skipped: list[tuple[Path, str]] = []
     for n, p in enumerate(paths, 1):
+        if should_continue is not None and not should_continue():
+            break                       # the caller moved on; stop probing
         if on_file:
             on_file(n, len(paths), p)
         try:

@@ -41,7 +41,7 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 1.14 `settings.py` — load/save with unknown-key preservation and `version` migration — done 2026-09-20; caps cache cuts start-up from 0.10s to 0.00s; corrupt config degrades to defaults
 - [x] 1.15 `tests/test_e2e.py` — synthetic clip via `ffmpeg lavfi`, real encode, verify, resume — done 2026-09-20; 72 tests pass in 31s covering rotation, audio, cancel, resume, delete gating, bit-exactness
 - [x] 1.18 `report.py` + `compvdo report` — full ffprobe metadata + per-file summary to one markdown (requested 2026-09-20) — done 2026-09-20; generated a 32k-char report for 4 real phone clips, every ffprobe field included verbatim
-- [M] 1.16 Trial on a real phone clip; record actual ratios in `qa-checklist.md` — blocked on M1 (no phone clips supplied yet); synthetic coverage is complete
+- [x] 1.16 Trial on a real phone clip; record actual ratios in `qa-checklist.md` — done 2026-09-20; 4 real clips, 1.06 GB → 487 MB (55% saved), all verified; findings recorded in qa-checklist.md
 - [x] 1.17 `README.md` — install, usage, the lossless explanation — done 2026-09-20; leads with the measured 5.0MB->10.2MB archive result rather than burying it
 
 ## Phase 2 — Linux GUI (PySide6)
@@ -52,19 +52,19 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 2.5 `gui/theme.qss` — Material 3 flavour, light/dark following the system (R12.4) — done 2026-09-20; token-substituted QSS, light+dark captured to reports/shots/; fixed label boxes and disabled-Danger styling
 - [x] 2.6 Preview: 10 s sample encode + side-by-side playback (R11) — done 2026-09-20; PreviewWorker cuts then encodes a 10s sample into a temp dir, never beside the original
 - [x] 2.7 `archive` mode warning dialog (R3.2) and `GREW` result badge (R7.2) — done 2026-09-20; archive dialog + banner, GREW shown as 'GREW — kept original' in the status column
-- [ ] 2.8 Trial pass on the GUI against `qa-checklist.md`
+- [x] 2.8 Trial pass on the GUI against `qa-checklist.md` — done 2026-09-20; GUI-driven batch encoded 3 clips with 27 live progress events, Cancel stopped in 0.32s leaving nothing behind, clean shutdown
 
-## Phase 3 — Windows
-- [ ] 3.1 Path/encoding audit of the core (no POSIX assumptions, long paths, UTF-16 names)
-- [ ] 3.2 `trash.py` Windows branch
-- [ ] 3.3 ffmpeg discovery: bundled `ffmpeg_bin/` then PATH
-- [ ] 3.4 PyInstaller spec + one-folder build  ← needs M2
-- [ ] 3.5 Trial on a Windows machine  ← needs M2
+## Phase 3 — Android  ← next, per the user's ordering
+- [ ] 3.1 Confirm Media3 `Transformer` HEVC + CRF-equivalent story; write the findings into `architecture.md`
+- [ ] 3.2 Compose M3 skeleton: permissions, MediaStore video query, sortable list
+- [ ] 3.3 Transformer job runner with progress + cancel, foreground service
+- [ ] 3.4 Output naming (R1) via MediaStore, trash-based delete (R2.3)
+- [ ] 3.5 Batch queue + suggestion ranking, sharing the R10.3 arithmetic
+- [ ] 3.6 Build and trial on a device  ← needs M3
 
-## Phase 4 — Android
-- [ ] 4.1 Confirm Media3 `Transformer` HEVC + CRF-equivalent story; write the findings into `architecture.md`
-- [ ] 4.2 Compose M3 skeleton: permissions, MediaStore video query, sortable list
-- [ ] 4.3 Transformer job runner with progress + cancel, foreground service
-- [ ] 4.4 Output naming (R1) via MediaStore, trash-based delete (R2.3)
-- [ ] 4.5 Batch queue + suggestion ranking, sharing the R10.3 arithmetic
-- [ ] 4.6 Build and trial on a device  ← needs M3
+## Phase 4 — Windows
+- [ ] 4.1 Path/encoding audit of the core (no POSIX assumptions, long paths, UTF-16 names)
+- [ ] 4.2 `trash.py` Windows branch
+- [ ] 4.3 ffmpeg discovery: bundled `ffmpeg_bin/` then PATH
+- [ ] 4.4 PyInstaller spec + one-folder build  ← needs M2
+- [ ] 4.5 Trial on a Windows machine  ← needs M2

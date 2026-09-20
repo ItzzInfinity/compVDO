@@ -361,8 +361,15 @@ class MainWindow(QMainWindow):
         self._start_scan(folder)
 
     def _start_scan(self, folder: Path) -> None:
-        if self._scan_worker and self._scan_worker.isRunning():
-            return
+        # Returning early here meant that choosing a second folder while the
+        # first was still being scanned did nothing at all: the user picks a
+        # folder, the window keeps showing the old one, and the next Compress
+        # runs against files they never selected. Stop the old scan instead.
+        if self._scan_worker is not None and self._scan_worker.isRunning():
+            self._scan_worker.requestInterruption()
+            if not self._scan_worker.wait(3000):
+                self._scan_worker.terminate()
+                self._scan_worker.wait(1000)
         if (n := prepare(folder)):
             self._say(f"cleared {n} temp file(s) from an interrupted run")
         self.table.setRowCount(0)

@@ -270,3 +270,15 @@ def test_estimate_range_never_promises_more_than_the_file_holds():
     from compvdo.plan import estimate_range
     i = make_info(vbitrate=200_000_000)
     assert estimate_range(i)[1] <= i.size
+
+
+def test_scan_stops_when_the_caller_says_so(tmp_path):
+    from compvdo.scan import scan
+    from compvdo.model import Caps
+    for n in range(5):
+        (tmp_path / f"c{n}.mp4").write_bytes(b"x")
+    caps = Caps(ffmpeg=Path("/bin/true"), ffprobe=Path("/bin/true"), ffmpeg_version="x")
+    seen = []
+    entries, skipped = scan(tmp_path, caps, on_file=lambda n, t, p: seen.append(p),
+                            should_continue=lambda: len(seen) < 2)
+    assert len(seen) == 2, "scan ignored should_continue"

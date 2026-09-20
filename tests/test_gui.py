@@ -205,3 +205,23 @@ def test_a_wrapped_label_is_given_the_height_it_asks_for(window):
     label = window.archive_warning
     assert label.height() >= label.heightForWidth(label.width())
     assert label.height() > label.fontMetrics().height() * 2, "clipped to one line"
+
+
+def test_choosing_a_second_folder_replaces_the_first(qapp, tmp_path, monkeypatch):
+    """Regression: _start_scan returned early while a scan was in flight, so
+    the window kept showing the old folder and Compress ran the wrong files."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "config"))
+    first, second = tmp_path / "one", tmp_path / "two"
+    first.mkdir()
+    second.mkdir()
+    w = MainWindow()
+    w.show()
+    try:
+        w._set_folder(first)
+        w._set_folder(second)          # must not be ignored
+        if w._scan_worker:
+            w._scan_worker.wait(10000)
+        assert w._folder == second
+        assert w.folder_label.text() == str(second)
+    finally:
+        w.close()

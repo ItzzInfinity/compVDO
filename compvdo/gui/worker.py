@@ -35,6 +35,7 @@ class ScanWorker(QThread):
             entries, skipped = scan(
                 self._root, self._caps, mode=self._mode, recursive=self._recursive,
                 on_file=lambda n, total, p: self.progress.emit(n, total, p.name),
+                should_continue=lambda: not self.isInterruptionRequested(),
             )
         except Exception as e:                # noqa: BLE001 - a crashed scan must
             self.failed.emit(str(e))          # surface in the UI, not the console
