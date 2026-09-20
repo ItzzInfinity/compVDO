@@ -1,7 +1,12 @@
 package com.compvdo.app.util
 
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
 import androidx.compose.runtime.Immutable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -71,6 +76,60 @@ object AppLog {
 
     /** The whole log as plain text, oldest first — what copy and share both use. */
     fun asText(): String = _entries.value.joinToString("\n") { it.format() }
+
+    /**
+     * Write the log to `Download/compvdo-log-<timestamp>.txt`.
+     *
+     * Share alone was not enough: the user pressed what they read as a download
+     * button and expected a file on disk. MediaStore's Downloads collection is
+     * used rather than a raw path so this needs no storage permission on any
+     * supported API level.
+     *
+     * @return the file's display name on success, or null on failure.
+     */
+    fun saveToDownloads(context: Context): String? {
+        val text = asText()
+        if (text.isBlank()) return null
+
+        val stamp = SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(Date())
+        val name = "compvdo-log-$stamp.txt"
+
+        return try {
+            val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val values = ContentValues().apply {
+                    put(MediaStore.Downloads.DISPLAY_NAME, name)
+                    put(MediaStore.Downloads.MIME_TYPE, "text/plain")
+                    put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
+                    put(MediaStore.Downloads.IS_PENDING, 1)
+                }
+                context.contentResolver.insert(
+                    MediaStore.Downloads.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
+                    values,
+                )?.also { created ->
+                    context.contentResolver.openOutputStream(created)?.use {
+                        it.write(text.toByteArray())
+                    }
+                    context.contentResolver.update(
+                        created,
+                        ContentValues().apply { put(MediaStore.Downloads.IS_PENDING, 0) },
+                        null, null,
+                    )
+                }
+            } else {
+                // API 28: legacy public Downloads directory.
+                val dir = Environment.getExternalStoragePublicDirectory(
+                    Environment.DIRECTORY_DOWNLOADS
+                )
+                dir.mkdirs()
+                java.io.File(dir, name).writeText(text)
+                Uri.fromFile(java.io.File(dir, name))
+            }
+            if (uri == null) null else name
+        } catch (e: Exception) {
+            add(Level.ERR, "could not save the log: ${e.message}")
+            null
+        }
+    }
 
     /**
      * Hand the log to another app (mail, chat, a notes app).

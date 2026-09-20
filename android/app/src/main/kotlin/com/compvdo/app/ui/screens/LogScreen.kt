@@ -13,7 +13,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.VerticalAlignBottom
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.KeyboardDoubleArrowDown
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -66,6 +67,8 @@ fun LogScreen(
                     }
                 },
                 actions = {
+                    // Was VerticalAlignBottom, which reads as a download arrow —
+                    // it was pressed expecting a saved file and only scrolled.
                     IconButton(
                         onClick = {
                             follow = true
@@ -74,7 +77,24 @@ fun LogScreen(
                             }
                         },
                     ) {
-                        Icon(Icons.Default.VerticalAlignBottom, contentDescription = "Scroll to end")
+                        Icon(
+                            Icons.Default.KeyboardDoubleArrowDown,
+                            contentDescription = "Scroll to end",
+                        )
+                    }
+                    IconButton(
+                        enabled = entries.isNotEmpty(),
+                        onClick = {
+                            val saved = AppLog.saveToDownloads(context)
+                            Toast.makeText(
+                                context,
+                                if (saved != null) "Saved to Download/$saved"
+                                else "Could not save the log",
+                                Toast.LENGTH_LONG,
+                            ).show()
+                        },
+                    ) {
+                        Icon(Icons.Default.Download, contentDescription = "Save to Download")
                     }
                     IconButton(
                         enabled = entries.isNotEmpty(),
@@ -84,7 +104,16 @@ fun LogScreen(
                     }
                     IconButton(
                         enabled = entries.isNotEmpty(),
-                        onClick = { context.startActivity(AppLog.shareIntent(context)) },
+                        onClick = {
+                            try {
+                                context.startActivity(AppLog.shareIntent(context))
+                            } catch (e: Exception) {
+                                Toast.makeText(
+                                    context, "Nothing available to send the log to",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            }
+                        },
                     ) {
                         Icon(Icons.Default.Share, contentDescription = "Send")
                     }

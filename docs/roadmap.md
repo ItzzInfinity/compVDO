@@ -69,7 +69,8 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 3.3 Data model and MediaStore scanner (`VideoInfo`) — done 2026-09-20; MediaStore query with sort, `READ_MEDIA_VIDEO` requested in `HomeScreen`
 - [x] 3.4 Compression engine wrapping Media3 `Transformer` — done 2026-09-20; threading verified correct (driven from `Dispatchers.Main.immediate`, which is what Media3 requires); open defects tracked in 3.7–3.16
 - [x] 3.5 The UI (list, sortable, progress card, settings) — done 2026-09-20; Compose M3 across Home/Compress/Settings screens
-- [M] 3.6 Build and trial on a real device — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
+- [x] 3.6 Build and trial on a real device — done 2026-09-20; cancel, encode, verify and the delete offer all confirmed working. Three defects found and fixed same-day (Download output path, external-player URI grant, redundant rescans). Re-trial needed for those fixes — see qa-checklist.md
+- [M] 3.6b Re-trial on device after the 2026-09-20 fixes — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
 
 ### Phase 3 follow-up — from the 2026-09-20 code validation
 

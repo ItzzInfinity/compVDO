@@ -80,6 +80,10 @@ object TransformerEngine {
             audioKbps = null
         }
 
+        // R1.1 cannot always be honoured on Android — say so rather than
+        // letting the user wonder where the file went.
+        OutputNaming.resolveRelativePath(source.relativePath).note?.let { notes.add(it) }
+
         // Create MediaStore entry for the output (R1.1, R1.2)
         val outputUri = OutputNaming.createOutputUri(context, source)
             ?: return CompressResult(false, null, 0, 0, "Failed to create output entry")

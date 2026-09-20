@@ -79,7 +79,10 @@ fun HomeScreen(
         if (ContextCompat.checkSelfPermission(context, permission) ==
             PackageManager.PERMISSION_GRANTED
         ) {
-            viewModel.scanVideos(context)
+            // ensureScanned, not scanVideos: this effect re-runs on every
+            // re-entry to Home, and a full rescan each time is expensive on a
+            // large library. The Refresh action is the explicit path.
+            viewModel.ensureScanned(context)
         } else {
             permissionLauncher.launch(permission)
         }

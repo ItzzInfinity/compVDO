@@ -45,6 +45,23 @@ class HomeViewModel : ViewModel() {
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     /**
+     * Whether a scan has completed at least once.
+     *
+     * The screen's `LaunchedEffect` re-runs every time Home re-enters
+     * composition — switching tabs, coming back from a batch — and on device
+     * that produced four full rescans of a 34 GB library in three seconds, plus
+     * more while compressing. [ensureScanned] makes the first one happen and
+     * the rest no-ops; Refresh stays explicit.
+     */
+    private var hasScanned = false
+
+    /** Scan only if we never have. Use [scanVideos] for an explicit refresh. */
+    fun ensureScanned(context: Context) {
+        if (hasScanned || _uiState.value.isLoading) return
+        scanVideos(context)
+    }
+
+    /**
      * One scan produces both the folder grid and the flat list, so opening a
      * folder and switching view mode never costs another MediaStore pass.
      */
@@ -57,6 +74,7 @@ class HomeViewModel : ViewModel() {
                     "scanned ${result.videos.size} video(s) in ${result.folders.size} folder(s), " +
                         FileSize.format(result.videos.sumOf { it.size }) + " total"
                 )
+                hasScanned = true
                 _uiState.update {
                     it.copy(
                         videos = result.videos,

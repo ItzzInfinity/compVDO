@@ -79,6 +79,41 @@ What this trial taught us:
 - [ ] Non-ASCII filenames and paths over 260 chars
 - [ ] Delete goes to the Recycle Bin
 
+## Android device trial — 2026-09-20 (M3)
+
+First run on real hardware, 303 videos / 34.54 GB across 16 folders.
+
+**Confirmed working:**
+- Scanner reaches everything, including `Download` — the fix for the
+  `MediaStore.Video.Media` view problem holds on device.
+- **Cancel stops the running file**, and the log shows `no unfinished output
+  left behind` — the `NonCancellable` cleanup does run, so no orphaned
+  `IS_PENDING` row.
+- A real encode: `446.3 MB → 113.4 MB (25%)`, verified, and the original
+  correctly offered for removal.
+- `POST_NOTIFICATIONS` requested and granted at batch start.
+- Preview opens in an external player.
+
+**Three defects found and fixed the same day:**
+- [x] **A video in `Download` failed before encoding**: *"Primary directory
+      Download not allowed … allowed directories are [DCIM, Movies, Pictures]"*.
+      R1.1 ("beside the original") is not achievable on Android for those roots;
+      output now falls back to `Movies/compVDO` and the job says so.
+- [x] **Opening a file in an external player threw** *"UID 10333 does not have
+      permission to content://media/…"*. Cause: `FLAG_GRANT_READ_URI_PERMISSION`
+      on a MediaStore URI we hold by *permission*, not by grant — there is no
+      grant to forward, and the error names our own uid, which reads like the
+      file being unreadable to us. The flag is now only added for SAF URIs.
+- [x] **The library was rescanned four times in three seconds** and again during
+      compression, because Home's `LaunchedEffect` re-runs on every re-entry.
+      Now `ensureScanned()`; Refresh remains explicit.
+
+**Still to check on device after these fixes:**
+- [ ] A `Download` video now compresses, and the note naming `Movies/compVDO` appears
+- [ ] The compressed output opens in an external player
+- [ ] Home no longer rescans on tab switches
+- [ ] The Log tab's Save button writes `Download/compvdo-log-<timestamp>.txt`
+
 ## Android code validation — 2026-09-20
 
 Build: `./gradlew assembleDebug` **succeeds** (JDK 17, compileSdk 35, minSdk 26,

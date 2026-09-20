@@ -31,27 +31,51 @@ object VideoPlayback {
     /**
      * Open [uri] in an external player.
      *
-     * MediaStore content URIs carry their own read grant; the extra
-     * `FLAG_GRANT_READ_URI_PERMISSION` covers SAF-derived ones, which do not.
+     * **Do not add `FLAG_GRANT_READ_URI_PERMISSION` to a `content://media/…`
+     * URI.** We reach MediaStore through the `READ_MEDIA_VIDEO` permission, not
+     * through a grant we hold, so there is no grant to pass on — and asking to
+     * forward one we do not have makes `startActivity` throw
+     * `SecurityException: UID nnnnn does not have permission to
+     * content://media/external_primary/video/media/…`, naming our own uid,
+     * which reads misleadingly like the file being inaccessible to us.
+     * Observed on device 2026-09-20.
+     *
+     * The flag is still right for a SAF `content://com.android.externalstorage…`
+     * URI, where we really do hold a grant, so it is added only for those.
      */
     fun open(context: Context, uri: Uri, mimeType: String = "video/*", title: String = "Play with") {
-        val view = Intent(Intent.ACTION_VIEW).apply {
+        val isMediaStore = uri.authority == "media"
+
+        fun intentFor(withGrant: Boolean) = Intent(Intent.ACTION_VIEW).apply {
             setDataAndType(uri, mimeType.ifBlank { "video/*" })
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            if (withGrant) addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
+
+        fun launch(withGrant: Boolean) {
+            context.startActivity(
+                Intent.createChooser(intentFor(withGrant), title).apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+            )
+        }
+
         try {
-            context.startActivity(Intent.createChooser(view, title).apply {
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            })
+            launch(withGrant = !isMediaStore)
             AppLog.info("opened ${uri.lastPathSegment ?: uri} in an external player")
         } catch (e: ActivityNotFoundException) {
             AppLog.warn("no video player installed to open ${uri.lastPathSegment}")
             Toast.makeText(context, "No video player installed", Toast.LENGTH_SHORT).show()
         } catch (e: SecurityException) {
-            // Most likely a SAF URI whose grant was not persisted.
-            AppLog.err("not permitted to open ${uri.lastPathSegment}: ${e.message}")
-            Toast.makeText(context, "Cannot open this file", Toast.LENGTH_SHORT).show()
+            // A grant we could not forward. Retry plainly: any real player holds
+            // the media permission itself.
+            try {
+                launch(withGrant = false)
+                AppLog.info("opened ${uri.lastPathSegment ?: uri} (without a uri grant)")
+            } catch (e2: Exception) {
+                AppLog.err("not permitted to open ${uri.lastPathSegment}: ${e2.message}")
+                Toast.makeText(context, "Cannot open this file", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 }

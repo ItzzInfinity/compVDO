@@ -31,7 +31,10 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
 - [x] 3. Minimum Android version — **answered: Android 9.0 (API 28)**, applied
       as roadmap 3b.0. Note API 28 keeps the legacy storage permission path
       alive, which is relevant to the `Download` folder item (3b.7).
-- **This is the next thing that will block me.** Phases 1 and 2 (Linux CLI and GUI) are complete.
+- **First trial done 2026-09-20** — 303 videos / 34.54 GB. Cancel, encode,
+  verification and the delete offer all confirmed working on hardware. Three
+  defects were found and fixed the same day; `qa-checklist.md` lists the four
+  things worth re-checking on the next install.
 
 ### M4 — Decisions I need from you  (unblocks nothing; changes defaults)
 - [x] 1. **The lossless question** — **decided 2026-09-20: keep visually-lossless
