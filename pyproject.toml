@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "compvdo"
+version = "0.1.0"
+description = "Local, offline video re-compression for phone footage"
+requires-python = ">=3.10"
+dependencies = []                      # core is stdlib-only, by design
+
+[project.optional-dependencies]
+gui = ["PySide6>=6.5"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+compvdo = "compvdo.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["compvdo*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
