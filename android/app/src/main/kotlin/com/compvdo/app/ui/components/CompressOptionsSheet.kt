@@ -1,6 +1,8 @@
 package com.compvdo.app.ui.components
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -41,6 +43,10 @@ fun CompressOptionsSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Expanded, this sheet carries three quality options, four
+                // audio options and a toggle — taller than a phone screen.
+                // Without the scroll the Start button is simply unreachable.
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp)
                 .padding(bottom = 32.dp),
         ) {

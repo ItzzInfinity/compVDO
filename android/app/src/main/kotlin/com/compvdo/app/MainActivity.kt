@@ -162,7 +162,7 @@ private fun CompVdoRoot() {
             }
 
             composable(Tab.SETTINGS.route) {
-                SettingsScreen(onNavigateBack = { navController.popBackStack() })
+                SettingsScreen()      // a tab, so no back arrow
             }
 
             composable("compress") {

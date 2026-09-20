@@ -134,91 +134,94 @@ fun CompressScreen(
             )
         },
     ) { padding ->
-        Column(
+        // One scroll for the whole screen. The progress card and the summary
+        // used to sit ABOVE the LazyColumn in a plain Column, so on a short
+        // screen — or once the summary grew a delete button and a message —
+        // the results list got squeezed toward zero height and the individual
+        // per-file rows became unreachable. As items they scroll with
+        // everything else and cannot crowd each other out.
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
+            contentPadding = PaddingValues(bottom = 24.dp),
         ) {
-            // Progress card
             if (uiState.isRunning || uiState.results.isNotEmpty()) {
-                ProgressCard(
-                    currentFileName = uiState.currentFileName,
-                    fileProgress = uiState.fileProgress,
-                    overallProgress = uiState.overallProgress,
-                    completedCount = uiState.completedCount,
-                    totalCount = uiState.totalCount,
-                    results = uiState.results,
-                )
+                item(key = "progress") {
+                    ProgressCard(
+                        currentFileName = uiState.currentFileName,
+                        fileProgress = uiState.fileProgress,
+                        overallProgress = uiState.overallProgress,
+                        completedCount = uiState.completedCount,
+                        totalCount = uiState.totalCount,
+                        results = uiState.results,
+                    )
+                }
             }
 
-            // Completion summary
             if (!uiState.isRunning && uiState.results.isNotEmpty()) {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                    ),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
+                item(key = "summary") {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        ),
                     ) {
-                        val okResults = uiState.results.filter { it.status == BatchRunner.Status.OK }
-                        val totalSaved = okResults.sumOf { it.source.size - it.outputSize }
-                        val totalOriginal = uiState.results.sumOf { it.source.size }
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            val okResults =
+                                uiState.results.filter { it.status == BatchRunner.Status.OK }
+                            val totalSaved = okResults.sumOf { it.source.size - it.outputSize }
+                            val totalOriginal = uiState.results.sumOf { it.source.size }
 
-                        Text(
-                            text = stringResource(R.string.completed),
-                            style = MaterialTheme.typography.headlineMedium,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = "${okResults.size} / ${uiState.results.size} files compressed",
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
-                        if (totalSaved > 0) {
                             Text(
-                                text = "Saved ${FileSize.format(totalSaved)} of ${FileSize.format(totalOriginal)} " +
-                                        "(${FileSize.formatRatio(totalSaved.toDouble() / totalOriginal)})",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.primary,
+                                text = stringResource(R.string.completed),
+                                style = MaterialTheme.typography.headlineSmall,
                             )
-                        }
-
-                        if (uiState.deleteMessage.isNotBlank()) {
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                text = uiState.deleteMessage,
-                                style = MaterialTheme.typography.bodyMedium,
+                                text = "${okResults.size} / ${uiState.results.size} files compressed",
+                                style = MaterialTheme.typography.bodyLarge,
                             )
-                        }
-
-                        // 3b.6 — offer, never assume. Only verified results that
-                        // actually shrank are ever offered (R7.2, R8.4).
-                        if (uiState.deletable.isNotEmpty()) {
-                            Spacer(Modifier.height(12.dp))
-                            OutlinedButton(onClick = { viewModel.offerDeleteNow() }) {
+                            if (totalSaved > 0) {
                                 Text(
-                                    if (TrashRequest.isRecoverable())
-                                        "Move ${uiState.deletable.size} original(s) to trash"
-                                    else
-                                        "Delete ${uiState.deletable.size} original(s)"
+                                    text = "Saved ${FileSize.format(totalSaved)} of " +
+                                        "${FileSize.format(totalOriginal)} " +
+                                        "(${FileSize.formatRatio(totalSaved.toDouble() / totalOriginal)})",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
+                            }
+
+                            if (uiState.deleteMessage.isNotBlank()) {
+                                Spacer(Modifier.height(8.dp))
+                                Text(
+                                    text = uiState.deleteMessage,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            }
+
+                            // 3b.6 — offer, never assume. Only verified results
+                            // that actually shrank are ever offered (R7.2, R8.4).
+                            if (uiState.deletable.isNotEmpty()) {
+                                Spacer(Modifier.height(12.dp))
+                                OutlinedButton(onClick = { viewModel.offerDeleteNow() }) {
+                                    Text(
+                                        if (TrashRequest.isRecoverable())
+                                            "Move ${uiState.deletable.size} original(s) to trash"
+                                        else
+                                            "Delete ${uiState.deletable.size} original(s)"
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // Results list
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(bottom = 16.dp),
-            ) {
-                items(uiState.results) { result ->
-                    ResultItem(result = result)
-                }
+            items(uiState.results, key = { it.source.uri.toString() }) { result ->
+                ResultItem(result = result)
             }
         }
     }

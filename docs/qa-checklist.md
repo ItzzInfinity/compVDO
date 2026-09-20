@@ -79,6 +79,36 @@ What this trial taught us:
 - [ ] Non-ASCII filenames and paths over 260 chars
 - [ ] Delete goes to the Recycle Bin
 
+## Scrolling audit — 2026-09-20
+
+Reported: the Appearance section in Settings could not be reached. Cause was a
+plain `Column(fillMaxSize())` with no `verticalScroll` — Compose clips the
+overflow silently rather than scrolling, so the section existed and was simply
+unreachable. Every screen was then checked for the same shape:
+
+- [x] **SettingsScreen** — the reported bug. Now scrolls. The `Spacer(weight(1f))`
+      had to go with it: `weight` needs a bounded height, which a scrolling
+      column does not have.
+- [x] **CompressOptionsSheet** — same latent bug. Expanded it carries three
+      quality options, four audio options and a toggle; taller than a phone
+      screen, which would have put **Start** out of reach.
+- [x] **CompressScreen** — the progress card and summary sat *above* a
+      `LazyColumn` in a plain Column, so on a short screen (or once the summary
+      grew a delete button) the results list was squeezed toward zero height.
+      All three are now items in one `LazyColumn`.
+- [x] **SortBar** — four chips in a fixed `Row`; a clipped sort option is an
+      option the user does not have. Scrolls horizontally now.
+- [x] **Settings had a back arrow while being a bottom-nav tab** — it pointed
+      nowhere. Removed.
+- LogScreen, HomeScreen (grid and list) were already `Lazy*` and are fine.
+
+**The rule worth keeping:** a `Column` holding anything a future section might
+be appended to needs `verticalScroll` from the start, because the failure mode
+is invisible — nothing errors, the content is just gone.
+
+- [ ] Confirm on device: Settings scrolls to Appearance and About
+- [ ] Confirm the compress options sheet scrolls to Start when expanded
+
 ## Speed measurements — 2026-09-20
 
 20 s cut of `video_20260705_062317.mp4` (1080p60 HEVC, 26 MB), AMD Lucienne,

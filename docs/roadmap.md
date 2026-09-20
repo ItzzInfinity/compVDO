@@ -77,6 +77,7 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 2c.5 Fix the hardware quality ladder — done 2026-09-20; VAAPI was fed the software CRF directly, so `--hw auto --mode high` produced a file **219% of its source**. Hardware now maps to crf+8; `--hw auto` is 5.8x faster than the default and smaller
 - [x] 3b.14 Inherit DATE_TAKEN/DATE_MODIFIED on Android output — done 2026-09-20; without them the provider stamps "now" and every compressed file jumps to the top of the album instead of sitting beside its original
 - [x] 3b.15 Thumbnail performance — done 2026-09-20; a shared Coil loader in `CompVdoApp` with a 96 MB disk cache and a 20% memory cache, plus bounded decode sizes so a 4K frame is not decoded for a 64dp box
+- [x] 3b.16 Scrolling audit — done 2026-09-20; Settings could not reach Appearance (no `verticalScroll` on a `fillMaxSize` Column, which clips silently). Same latent bug fixed in the options sheet, CompressScreen and SortBar before it could be reported
 - [M] 3.6b Re-trial on device after the 2026-09-20 fixes — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
 
 ### Phase 3 follow-up — from the 2026-09-20 code validation
