@@ -172,6 +172,43 @@ the main looper, which is what Media3 requires.
 - Dependency choices are current and sensible; the stack matches the recorded
   decision.
 
+## Manual — Android: what the 2026-09-20 changes need checked on hardware
+
+None of this could be verified without a device. Each line is a specific thing
+to look at, not a general "test the app".
+
+**Deleting originals (the fixes to R2.3/R8.3/R8.4):**
+- [ ] On Android 11+: confirming a delete shows the **system** trash dialog, and
+      the files are afterwards restorable from the gallery's Trash
+- [ ] On Android 9 (the new minSdk): the dialog says "Delete permanently" and
+      **not** "move to trash" — there is no media trash before API 30
+- [ ] A batch where one output GREW: that original is not offered for deletion
+- [ ] Declining the prompt leaves every original in place
+
+**Export (the `"w"` → `"rw"` fix):**
+- [ ] Exports actually complete. If they fail, this is the first suspect —
+      the MP4 muxer seeks back to write `moov` at the end
+
+**Scanner coverage:**
+- [ ] A video downloaded by Chrome appears — separately on Android 12 (expected
+      to work via `READ_EXTERNAL_STORAGE`) and Android 13+ (expected to need a
+      SAF grant on `Download`; confirm whether it does)
+- [ ] On Android 9: check logcat for `MediaScanner: full projection failed` —
+      if the lean-retry path kicks in, duration/width/height/bucket are lost
+- [ ] No `volume '…' not scannable` + `IllegalArgumentException` in logcat
+      (MediaProvider runs a strict grammar check on the `LIKE ?` selection)
+- [ ] WhatsApp Video folder appears with the right name and count
+- [ ] `adb shell ls -a` on `Android/media/com.whatsapp/WhatsApp/Media/WhatsApp Documents/`
+      — a `.nomedia` there means MediaStore cannot see it at all and SAF is mandatory
+- [ ] A document-MIME row can actually be opened by Media3 `Transformer`; it may
+      throw `SecurityException` on 33+ even though the row listed
+- [ ] SD card / OTG: per-volume iteration finds its videos, and one failing
+      volume degrades instead of emptying the list
+- [ ] Folders do not split into two tiles where `BUCKET_ID` is null
+
+**Log:**
+- [ ] Copy puts the log on the clipboard; Send opens a share sheet with the text
+
 ## Manual — Android (needs M3)
 - [ ] **Do NOT enable "Delete originals" until the trash bug above is fixed.**
 - [ ] Export actually succeeds on device (watch the `"w"` vs `"rw"` issue first)

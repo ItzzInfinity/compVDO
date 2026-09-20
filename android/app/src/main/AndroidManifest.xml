@@ -1,9 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Read videos from shared storage -->
+    <!--
+      Read videos from shared storage.
+
+      API 33+: READ_MEDIA_VIDEO. This covers every row MediaStore has filed as
+      video, anywhere on external storage — including
+      Android/media/com.whatsapp/... . It deliberately does NOT cover rows whose
+      media_type is not video (a video sitting in Download/ that the download
+      manager filed as application/octet-stream, or a WhatsApp "Documents"
+      item); MediaProvider filters those out of our cursors.
+
+      API <= 32: READ_EXTERNAL_STORAGE is the legacy blanket read and DOES cover
+      those non-media rows, so the Download/documents case resolves itself
+      below 33.
+
+      The remaining API 33+ gap is closed with a Storage Access Framework tree
+      grant (SafVideoScanner) — the same route needed for any folder hidden by
+      a .nomedia marker. MANAGE_EXTERNAL_STORAGE is intentionally NOT declared:
+      it is a Play-policy landmine and SAF is the sanctioned route.
+    -->
     <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
-    <!-- Fallback for API < 33 -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"

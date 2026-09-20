@@ -296,3 +296,48 @@ def test_delete_confirmation_summarises_a_long_list(window, monkeypatch):
     infos = [make_info(path=Path(f"/v/c{n}.mp4")) for n in range(30)]
     assert window._confirm_delete(infos) is True
     assert "and 18 more" in seen["detail"]               # 12 shown + 18
+
+
+# --- audio control (R6.3 / R6.5) -------------------------------------------
+
+def test_audio_defaults_to_keep_and_hides_its_note(window):
+    assert window.current_audio() == "keep"                    # R6.1
+    assert not window.audio_note.isVisible()
+
+
+def test_choosing_a_bitrate_persists_and_shows_the_note(window):
+    from compvdo.settings import load
+    window.audio.setCurrentIndex(3)                            # 'AAC 128 kbps'
+    assert window.current_audio() == "128k"
+    assert window.audio_note.isVisible()
+    assert load()["defaults"]["audio"] == "128k"
+    assert any("128k" in line for line in window.log.toPlainText().splitlines())
+
+
+def test_the_audio_combo_only_offers_legal_values(window):
+    from compvdo.plan import AUDIO_CHOICES, AUDIO_MIN_KBPS
+    assert window.audio.count() == len(AUDIO_CHOICES)
+    for choice in AUDIO_CHOICES[1:]:
+        assert int(choice.rstrip("k")) >= AUDIO_MIN_KBPS
+
+
+def test_a_stored_value_below_the_floor_is_clamped_and_logged(qapp, tmp_path, monkeypatch):
+    # R6.5 — a hand-edited settings.json must not smuggle 64k past the floor.
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path / "cfg"))
+    from compvdo import settings
+    data = settings.load()
+    data["defaults"]["audio"] = "64k"
+    settings.save(data)
+    w = MainWindow()
+    try:
+        assert w.current_audio() == "128k"
+        assert "floor" in w.log.toPlainText()
+    finally:
+        w.close()
+
+
+def test_the_audio_combo_is_disabled_while_busy(window):
+    window._set_busy(True)                                     # dev_guide §7.5
+    assert not window.audio.isEnabled()
+    window._set_busy(False)
+    assert window.audio.isEnabled()

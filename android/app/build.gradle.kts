@@ -25,7 +25,7 @@ android {
 
     defaultConfig {
         applicationId = "com.compvdo.app"
-        minSdk = 26
+        minSdk = 28
         targetSdk = 35
         versionCode = verMajor * 10000 + verMinor * 100 + verPatch
         versionName = "$verMajor.$verMinor.$verPatch"

@@ -40,9 +40,51 @@ _AUDIO_OK = {
 
 _TARGET_BPP = {"low": 0.020, "medium": 0.035, "high": 0.055}
 
+# --- audio re-encode ladder (R6.3 - R6.6) ----------------------------------
+
+# The one and only floor. Below this AAC starts to audibly smear cymbals and
+# sibilance, and the few megabytes it saves are not worth it on a video file.
+# Nothing in the codebase may hard-code 128 anywhere else (R6.5).
+AUDIO_MIN_KBPS = 128
+
+# A short fixed ladder, not a free-form number: a box people can only put a
+# sane value in needs no validation UI and no support questions (R6.3).
+AUDIO_KEEP = "keep"
+AUDIO_CHOICES = (AUDIO_KEEP, "192k", "160k", "128k")
+AUDIO_DEFAULT = AUDIO_KEEP
+
+# What R6.2's forced re-encode uses when the user did not pick a bitrate.
+AUDIO_FORCED_KBPS = 192
+
 
 class PlanError(ValueError):
     """The requested combination cannot be encoded with the available ffmpeg."""
+
+
+def resolve_audio(value: str | int | None) -> tuple[int | None, str | None]:
+    """`'keep'|'192k'|160|None` -> (kbps or None for copy, note or None).
+
+    Pure, and deliberately separate from `build()` so the CLI and the GUI can
+    show the clamp message before anything is encoded. A request below
+    AUDIO_MIN_KBPS is clamped rather than obeyed, and the clamp is *always*
+    reported - silently doing something other than what was asked for is the
+    one thing this project does not do (R6.5).
+    """
+    if value is None or value == AUDIO_KEEP:
+        return None, None
+    text = str(value).strip().lower().rstrip("k")
+    try:
+        kbps = int(text)
+    except ValueError:
+        raise PlanError(
+            f"unknown audio option {value!r}; expected one of {', '.join(AUDIO_CHOICES)}"
+        ) from None
+    if kbps < AUDIO_MIN_KBPS:
+        return AUDIO_MIN_KBPS, (
+            f"requested audio bitrate {kbps} kbps is below the {AUDIO_MIN_KBPS} kbps "
+            f"floor; using {AUDIO_MIN_KBPS} kbps instead (R6.5)"
+        )
+    return kbps, None
 
 
 @dataclass(frozen=True)
@@ -221,16 +263,30 @@ def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None) -> Pla
         argv += ["-global_quality", str(crf)]
 
     # -- audio (R6) -------------------------------------------------------
+    # Two independent reasons to re-encode: the user asked (R6.3), or the codec
+    # is illegal in the target container (R6.2). They share one branch so a job
+    # that hits both re-encodes once, at the bitrate the user chose.
+    asked_kbps, audio_note = resolve_audio(spec.audio)
+    if audio_note:
+        notes.append(audio_note)
+
     if src.acodec is None:
         audio_action = "none"
         argv += ["-an"]
-    elif src.acodec in _AUDIO_OK.get(target_ext, frozenset()):
-        audio_action = "copy"
-        argv += ["-map", "0:a?", "-c:a", "copy"]
+        if asked_kbps is not None:
+            notes.append("source has no audio track; the audio option does nothing (R6.6)")
     else:
-        audio_action = "aac"
-        argv += ["-map", "0:a?", "-c:a", "aac", "-b:a", "192k"]
-        notes.append(f"audio re-encoded to AAC: {src.acodec} is not valid in .{target_ext} (R6.2)")
+        forced = src.acodec not in _AUDIO_OK.get(target_ext, frozenset())
+        if asked_kbps is None and not forced:
+            audio_action = "copy"
+            argv += ["-map", "0:a?", "-c:a", "copy"]
+        else:
+            kbps = asked_kbps if asked_kbps is not None else AUDIO_FORCED_KBPS
+            audio_action = "aac"
+            argv += ["-map", "0:a?", "-c:a", "aac", "-b:a", f"{kbps}k"]
+            if forced:
+                notes.append(f"audio re-encoded to AAC {kbps} kbps: {src.acodec} is "
+                             f"not valid in .{target_ext} (R6.2)")
 
     # -- metadata (R5) ----------------------------------------------------
     # ffmpeg's -autorotate is on by default, so the rotation is baked into the

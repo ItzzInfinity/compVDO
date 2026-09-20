@@ -7,7 +7,77 @@
 > Newest first. New blocks are prepended by
 > `node <skill>/scaffold.mjs checkpoint --title="…"`.
 
-## Current state — 2026-09-20 (session 5) — Android app code-validated: builds, but delete is destructive
+## Current state — 2026-09-20 (session 6) — Android data-loss fixed; icon, scanner, log and desktop audio landed
+
+- **Current phase:** 3 — Android. The blocking defects are closed; UX work remains.
+- **Last completed task:** 2c.3 desktop audio tests
+- **Next task:** 3b.8 — the Compose UI for the album-style folder picker. Its data layer already exists (`VideoFolder`).
+
+### Session summary
+Worked the user's batch from `manual-task.md`, three sub-agents in parallel on
+disjoint file sets plus the blocking fixes here.
+
+1. **The permanent delete is gone.** `BatchRunner` no longer removes anything.
+   New `compression/TrashRequest.kt` uses `MediaStore.createTrashRequest` on API
+   30+, the `RecoverableSecurityException` IntentSender on 29, and legacy delete
+   on 28 — each labelled honestly by `isRecoverable()` so the dialog cannot
+   promise a trash that does not exist on that device.
+2. **R8.3 verifies something now.** `Verifier.walkSamples()` reads every sample
+   of the video track and rejects a file whose last frame falls short of the
+   declared duration.
+3. **A confirmation dialog exists** (there was none): names up to 12 targets,
+   count, total size, and emphasises "Keep originals".
+4. minSdk 26 → 28, `"w"` → `"rw"`, MediaStore work off the main thread, and the
+   discarded-probe/empty-listener dead code removed.
+5. Log system (`util/AppLog.kt` + `LogScreen`) with the desktop's five tags.
+6. Sub-agents: launcher icon, scanner coverage, desktop audio ladder.
+
+**Gotchas learned this session:**
+- **The icon's real fault was geometry, not taste.** `viewportWidth=100` on a
+  108dp canvas stretched the art so both arrow tips sat ~13dp outside the 72dp
+  guaranteed region, and every launcher mask sliced them off. `<monochrome>`
+  also pointed at the four-colour drawable, and the background was pure white —
+  hence the "indistinct white circle".
+- **`MediaStore.Video.Media` is a view, not a folder listing.** It is the files
+  table filtered to `media_type = 3`. A video downloaded by a browser is indexed
+  with a generic MIME as `MEDIA_TYPE_NONE`/`DOCUMENT`, so **no** query of the
+  Video collection can return it, however the selection is written. That was the
+  Download-folder bug. Querying `MediaStore.Files` with a MIME/extension
+  selection is the fix; `.nomedia` directories remain unreachable by any query.
+- **A pure sine tone cannot demonstrate an audio bitrate change** — AAC encodes
+  it at ~60 kbps whatever `-b:a` says. Pink noise is the honest probe.
+- **"Resource not found" from AAPT can be a lie.** A `--` inside an XML comment
+  is illegal XML; the resource silently fails to compile and the error surfaces
+  downstream as "not found".
+- **Parallel agents on one tree need file-level partitions, and even then the
+  build goes red.** `ui/` referenced `MediaScanner` while that file's API was
+  being changed underneath it, so `assembleDebug` failed for reasons unrelated
+  to the change being made. Partition by *dependency*, not just by directory.
+
+### Partially done
+- 3b.8: data layer landed, Compose UI not written.
+- Still open in Phase 3b: 3b.2 tabs, 3b.4 settings bottom sheet, 3b.5 preview,
+  3b.8 UI, 3b.10 Android audio. Plus 3.10 (cancel), 3.12 (notification),
+  3.13, 3.15, 3.16 from the earlier validation.
+
+### Blocked
+- **3.6** on **M3** — device trial. Everything here is code-verified only.
+
+### Next step (exact)
+Build the album grid: a `LazyVerticalGrid` of `VideoFolder` tiles, three
+columns, each showing the representative thumbnail via Coil, the folder name
+and the count — matching `reports/android/Screenshot_20260920_150833.jpg`. Add
+the two view modes (big tile / compact list) and keep the existing sort
+options. Make the whole row clickable, not just the text (3b.8c).
+
+### Assumptions
+- The delete prompt appears only when the user has the "delete originals"
+  preference on; it never deletes without both that preference and an explicit
+  confirmation.
+- `PreviewWorker` on desktop still previews with default audio. Deliberate —
+  preview exists to judge video — but it is a one-argument change if wanted.
+
+## Previous state — 2026-09-20 (session 5) — Android app code-validated: builds, but delete is destructive
 
 - **Current phase:** 3 — Android. Implemented and building; **not** closed.
 - **Last completed task:** code validation of the Android app against `requirements.md`

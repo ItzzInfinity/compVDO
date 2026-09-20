@@ -9,8 +9,18 @@ import com.compvdo.app.data.VideoInfo
 /**
  * Manages batch compression of multiple videos — implements R9.
  *
+ * Owns:   the compression queue.
+ * Reads:  the source videos, through TransformerEngine.
+ * Writes: compressed outputs, through MediaStore.
+ * Runs:   the hardware encoder, via Media3 Transformer.
+ *
  * R9.1: Sequential by default (hardware encoder is the bottleneck).
  * R9.3: One file's failure never aborts the batch.
+ *
+ * **This class does not delete anything.** It used to, straight after
+ * verification, with no way for the user to intervene. Removal now happens
+ * only through TrashRequest, only after the batch, and only once the user has
+ * confirmed — see [deletableOriginals].
  */
 @UnstableApi
 object BatchRunner {
@@ -39,11 +49,20 @@ object BatchRunner {
     }
 
     /**
+     * Which originals it is safe to offer to remove (R2.2, R7.2, R8.4).
+     *
+     * A result qualifies only if it compressed successfully, passed
+     * verification, and actually came out smaller. Anything else keeps its
+     * original, whatever the user asked for.
+     */
+    fun deletableOriginals(results: List<JobResult>): List<VideoInfo> =
+        results.filter { it.status == Status.OK && it.verified }.map { it.source }
+
+    /**
      * Run compression on a list of videos sequentially.
      *
      * @param videos The videos to compress
      * @param mode The quality mode
-     * @param deleteOriginal Whether to delete originals after verification (R2.2)
      * @param onProgress Called with (fileIndex, totalFiles, fileProgress 0..100)
      * @param onFileComplete Called when each file finishes
      * @param isCancelled Lambda checked before each file
@@ -52,7 +71,6 @@ object BatchRunner {
         context: Context,
         videos: List<VideoInfo>,
         mode: CompressionMode,
-        deleteOriginal: Boolean,
         onProgress: (Int, Int, Int) -> Unit = { _, _, _ -> },
         onFileComplete: (JobResult) -> Unit = {},
         isCancelled: () -> Boolean = { false },
@@ -85,16 +103,9 @@ object BatchRunner {
                     // R8: Verify before allowing delete
                     val verifyResult = Verifier.verify(context, video, compressResult.outputUri)
 
-                    // R2.2: Delete original only if explicitly asked AND verification passed
-                    var deleted = false
-                    if (deleteOriginal && verifyResult.passed && !grew) {
-                        deleted = trashOriginal(context, video.uri)
-                    }
-
                     val message = buildString {
                         if (grew) append("Output is larger than original. ")
                         if (!verifyResult.passed) append(verifyResult.message)
-                        if (deleted) append(" Original moved to trash.")
                     }.trim()
 
                     val result = JobResult(
@@ -104,7 +115,7 @@ object BatchRunner {
                         outputSize = compressResult.outputSize,
                         durationMs = compressResult.durationMs,
                         verified = verifyResult.passed,
-                        deleted = deleted,
+                        deleted = false,          // removal is a separate, confirmed step
                         message = message.ifEmpty { "OK" },
                     )
                     results.add(result)
@@ -142,16 +153,4 @@ object BatchRunner {
         return results
     }
 
-    /**
-     * Move the original to trash (R2.3).
-     * Uses MediaStore.createTrashRequest on API 30+.
-     */
-    private fun trashOriginal(context: Context, uri: Uri): Boolean {
-        return try {
-            context.contentResolver.delete(uri, null, null)
-            true
-        } catch (_: Exception) {
-            false
-        }
-    }
 }

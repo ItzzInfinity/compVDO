@@ -7,6 +7,7 @@ import shutil
 import signal
 import sys
 import tempfile
+from dataclasses import replace
 from pathlib import Path
 
 from . import __version__
@@ -14,7 +15,8 @@ from .cpu import RESERVED_CORES, describe as describe_cores
 from .batch import plan_jobs, prepare, run_batch
 from .encode import CancelToken
 from .model import JobResult, JobSpec, MODES
-from .plan import PlanError, build, output_path
+from .plan import (AUDIO_CHOICES, AUDIO_DEFAULT, PlanError, build, output_path,
+                   resolve_audio)
 from .probe import FFmpegMissing, ProbeError, info as probe_info
 from .scan import SORTS, scan, sort_entries
 from .settings import cached_caps, load, save
@@ -194,9 +196,17 @@ def cmd_compress(args) -> int:
     if not specs:
         print("\nNothing left to do.")
         return EXIT_OK
-    if args.crf is not None:
-        specs = [JobSpec(src=s.src, dst=s.dst, mode=s.mode, crf=args.crf, hw=s.hw,
-                         delete_original=s.delete_original) for s in specs]
+    audio = getattr(args, "audio", AUDIO_DEFAULT)
+    if args.crf is not None or audio != AUDIO_DEFAULT:
+        specs = [replace(s, crf=args.crf if args.crf is not None else s.crf,
+                         audio=audio) for s in specs]
+
+    # The clamp is announced once, up front, not buried in a per-file note.
+    kbps, audio_note = resolve_audio(audio)
+    if audio_note:
+        print(f"[WARN] {audio_note}")
+    if kbps is not None:
+        print(f"[INFO] audio will be re-encoded to AAC {kbps} kbps (R6.3)")
 
     # R3.2 — the archive warning goes out before anything runs, not after.
     if args.mode == "archive":
@@ -223,7 +233,7 @@ def cmd_compress(args) -> int:
 
     rep = Reporter(quiet=args.quiet)
     print(f"[INFO] compressing {len(specs)} file(s), mode={args.mode}, "
-          f"hw={args.hw}, using {describe_cores(args.cores)}\n")
+          f"hw={args.hw}, audio={audio}, using {describe_cores(args.cores)}\n")
     results = run_batch(specs, caps, on_progress=rep.progress, on_done=rep.done,
                         cancel=cancel, resume_in=folder if args.resume else None,
                         purge=args.purge, deep_verify=not args.fast_verify,
@@ -250,7 +260,8 @@ def cmd_preview(args) -> int:
     cut = probe_info(sample, caps)
     from .plan import target_container
     out = tmpdir / f"sample_compressed.{target_container(cut.container, args.mode)}"
-    spec = JobSpec(src=cut, dst=out, mode=args.mode, crf=args.crf, hw=args.hw)
+    spec = JobSpec(src=cut, dst=out, mode=args.mode, crf=args.crf, hw=args.hw,
+                   audio=getattr(args, "audio", AUDIO_DEFAULT))
     from .encode import run as encode_run
     rep = Reporter(quiet=args.quiet)
     outcome = encode_run(spec, caps, cores=args.cores,
@@ -340,6 +351,11 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--crf", type=int, help="override the ladder's rate factor")
         sp.add_argument("--hw", choices=("off", "auto"), default="off",
                         help="opt in to hardware encoding (faster, bigger files)")
+        sp.add_argument("--audio", choices=AUDIO_CHOICES, default=AUDIO_DEFAULT,
+                        metavar="{" + ",".join(AUDIO_CHOICES) + "}",
+                        help="re-encode audio to AAC at this bitrate "
+                             "(default: keep, which stream-copies it). "
+                             "Never goes below 128k.")
         sp.add_argument("--cores", type=int, metavar="N",
                         help=f"cores to use (default: all but "
                              f"{RESERVED_CORES}, so the machine stays usable)")

@@ -115,6 +115,60 @@ def test_audio_survives(caps, tmp_path):
     assert info(spec.dst, caps).acodec is not None          # R6.1
 
 
+def _audio_bitrate(caps, path: Path) -> int:
+    """Measured bits/s of the audio stream, from ffprobe."""
+    out = subprocess.run(
+        [str(caps.ffprobe), "-v", "error", "-select_streams", "a:0",
+         "-show_entries", "stream=bit_rate", "-of", "csv=p=0", str(path)],
+        check=True, capture_output=True, text=True).stdout.strip()
+    return int(out) if out.isdigit() else 0
+
+
+def _audio_md5(caps, path: Path) -> str:
+    """Hash of the *coded* audio packets - unchanged by a stream copy."""
+    return subprocess.run(
+        [str(caps.ffmpeg), "-v", "error", "-i", str(path), "-map", "0:a:0",
+         "-c", "copy", "-f", "md5", "-"],
+        check=True, capture_output=True, text=True).stdout.strip()
+
+
+def test_default_really_copies_the_audio_packets(caps, tmp_path):
+    # R6.1 - not 'roughly the same', bit-identical coded audio.
+    src = make_clip(caps, tmp_path / "keep.mp4", seconds=4)
+    spec, outcome = compress(caps, src)
+    assert outcome.ok
+    assert _audio_md5(caps, spec.dst) == _audio_md5(caps, src)
+
+
+@pytest.mark.parametrize("choice,ceiling", [("128k", 150_000), ("192k", 220_000)])
+def test_chosen_audio_bitrate_really_lands(caps, tmp_path, choice, ceiling):
+    # R6.3 - prove it on a real file, not just in the argv.
+    # Pink noise, not a sine: AAC compresses a pure tone to ~60 kbps however
+    # high you set -b:a, so a sine cannot demonstrate a bitrate change at all.
+    loud = tmp_path / f"loud{choice}.mp4"
+    subprocess.run([str(caps.ffmpeg), "-hide_banner", "-v", "error", "-y",
+                    "-f", "lavfi", "-i", "testsrc2=size=640x360:rate=30:duration=4",
+                    "-f", "lavfi", "-i", "anoisesrc=d=4:c=pink:a=0.5",
+                    "-c:v", "libx264", "-b:v", "4M", "-ac", "2",
+                    "-c:a", "aac", "-b:a", "320k", str(loud)],
+                   check=True, capture_output=True)
+    before = _audio_bitrate(caps, loud)
+    spec, outcome = compress(caps, loud, audio=choice)
+    assert outcome.ok
+    after = _audio_bitrate(caps, spec.dst)
+    assert before > ceiling, f"source was only {before} bits/s, nothing to prove"
+    assert after < ceiling, f"asked for {choice}, ffprobe says {after} bits/s"
+    assert _audio_md5(caps, spec.dst) != _audio_md5(caps, loud)
+    # R6.4 — channel count and sample rate are left exactly as they were.
+    assert info(spec.dst, caps).acodec == "aac"
+
+
+def test_audio_option_is_a_no_op_on_a_silent_source(caps, tmp_path):
+    src = make_clip(caps, tmp_path / "q.mp4", audio=False)        # R6.6
+    spec, outcome = compress(caps, src, audio="128k")
+    assert outcome.ok and info(spec.dst, caps).acodec is None
+
+
 # --- modes -----------------------------------------------------------------
 
 def test_lower_quality_gives_a_smaller_file(caps, tmp_path):

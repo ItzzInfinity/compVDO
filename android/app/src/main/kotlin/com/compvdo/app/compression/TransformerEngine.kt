@@ -11,7 +11,9 @@ import androidx.media3.transformer.Transformer
 import androidx.media3.transformer.TransformationRequest
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.VideoInfo
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
 
 /**
@@ -56,7 +58,9 @@ object TransformerEngine {
             val targetBitrate = QualityLadder.targetBitrate(mode, source)
 
             // Get the output file descriptor
-            val pfd = context.contentResolver.openFileDescriptor(outputUri, "w")
+            // "rw", not "w": the MP4 muxer seeks back to write the moov atom
+            // when the export finishes, and a write-only descriptor cannot.
+            val pfd = context.contentResolver.openFileDescriptor(outputUri, "rw")
                 ?: return CompressResult(false, null, 0, 0, "Failed to open output for writing").also {
                     OutputNaming.deleteOutput(context, outputUri)
                 }
@@ -149,9 +153,6 @@ object TransformerEngine {
             })
             .build()
 
-        // Set up progress polling
-        transformer.addListener(object : Transformer.Listener {})
-
         val mediaItem = MediaItem.fromUri(source.uri)
 
         try {
@@ -162,9 +163,6 @@ object TransformerEngine {
             val progressRunnable = object : Runnable {
                 override fun run() {
                     if (!cont.isActive) return
-                    val progressState = transformer.getProgress(
-                        androidx.media3.transformer.ProgressHolder()
-                    )
                     val holder = androidx.media3.transformer.ProgressHolder()
                     val state = transformer.getProgress(holder)
                     if (state == Transformer.PROGRESS_STATE_AVAILABLE) {
@@ -186,8 +184,8 @@ object TransformerEngine {
         }
     }
 
-    private fun getFileSize(context: Context, uri: Uri): Long {
-        return try {
+    private suspend fun getFileSize(context: Context, uri: Uri): Long = withContext(Dispatchers.IO) {
+        try {
             context.contentResolver.openFileDescriptor(uri, "r")?.use {
                 it.statSize
             } ?: 0L

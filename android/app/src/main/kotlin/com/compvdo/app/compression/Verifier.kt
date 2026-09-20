@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import java.nio.ByteBuffer
 import com.compvdo.app.data.VideoInfo
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -11,10 +12,22 @@ import kotlinx.coroutines.withContext
 /**
  * Verification checks that gate any delete — implements R8.
  *
+ * Owns:   the decision on whether an output is sound enough to permit removing
+ *         the original.
+ * Reads:  the output file, through MediaExtractor.
+ * Writes: nothing.
+ * Runs:   nothing.
+ *
  * R8.1: Output duration within 0.5% of source.
  * R8.2: Output video dimensions match source display dimensions.
- * R8.3: Output is playable (can be opened by MediaExtractor).
+ * R8.3: Output actually decodes end to end.
  * R8.4: All three must pass before a delete is permitted.
+ *
+ * R8.3 previously read the track header and then set `playable = true` with the
+ * comment "if we got this far with no exception, it's playable". A truncated
+ * file has a perfectly valid header, so the check could not fail — and its
+ * result is what authorises an irreversible delete. It now walks every sample
+ * in the video track, which is what actually catches a half-written file.
  */
 object Verifier {
 
@@ -39,8 +52,8 @@ object Verifier {
         var playable = false
         val messages = mutableListOf<String>()
 
+        val extractor = MediaExtractor()
         try {
-            val extractor = MediaExtractor()
             context.contentResolver.openFileDescriptor(outputUri, "r")?.use { pfd ->
                 extractor.setDataSource(pfd.fileDescriptor)
 
@@ -85,15 +98,19 @@ object Verifier {
                     messages.add("Dimensions mismatch: source=${source.width}x${source.height}, output=${outWidth}x${outHeight}")
                 }
 
-                // R8.3: Playability — if we got this far with no exception, it's playable
-                playable = true
-
-                extractor.release()
+                // R8.3: walk the whole video track. A truncated or corrupt
+                // file fails here; a header-only check cannot.
+                val walk = walkSamples(extractor, videoTrackIndex, outDurationUs)
+                playable = walk.ok
+                if (!walk.ok) messages.add(walk.reason)
             } ?: run {
                 messages.add("Cannot open output file")
             }
         } catch (e: Exception) {
             messages.add("Verification error: ${e.message}")
+        } finally {
+            // Was not in a finally, so it leaked on every exception path.
+            runCatching { extractor.release() }
         }
 
         val passed = durationOk && dimensionsOk && playable
@@ -104,5 +121,55 @@ object Verifier {
             playable = playable,
             message = if (passed) "Verification passed" else messages.joinToString("; "),
         )
+    }
+
+    private data class Walk(val ok: Boolean, val reason: String)
+
+    /**
+     * Read every sample of [trackIndex] to the end of the stream.
+     *
+     * This is the Android equivalent of the desktop's full decode pass. It does
+     * not decode pixels — it pulls each compressed sample out of the container,
+     * which is enough to catch the failure that matters here: an export that
+     * stopped early and left a file whose header still claims the full
+     * duration.
+     */
+    private fun walkSamples(
+        extractor: MediaExtractor,
+        trackIndex: Int,
+        expectedDurationUs: Long,
+    ): Walk {
+        return try {
+            extractor.selectTrack(trackIndex)
+            extractor.seekTo(0, MediaExtractor.SEEK_TO_CLOSEST_SYNC)
+            val buffer = ByteBuffer.allocate(1 shl 20)   // 1 MiB is ample for one sample
+            var samples = 0
+            var lastPtsUs = 0L
+
+            while (true) {
+                val size = extractor.readSampleData(buffer, 0)
+                if (size < 0) break                      // clean end of stream
+                lastPtsUs = maxOf(lastPtsUs, extractor.sampleTime)
+                samples++
+                if (!extractor.advance()) break
+            }
+            extractor.unselectTrack(trackIndex)
+
+            when {
+                samples == 0 ->
+                    Walk(false, "output contains no video samples")
+                // A file that stops well before its declared duration is the
+                // exact shape of a truncated export.
+                expectedDurationUs > 0 && lastPtsUs < expectedDurationUs * 0.98 ->
+                    Walk(
+                        false,
+                        "output is truncated: last frame at ${lastPtsUs / 1000}ms of " +
+                            "${expectedDurationUs / 1000}ms declared",
+                    )
+                else -> Walk(true, "")
+            }
+        } catch (e: Exception) {
+            Walk(false, "decode failed after opening: ${e.message}")
+        }
     }
 }

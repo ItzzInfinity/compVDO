@@ -52,9 +52,25 @@ document, not against the Python source.
 - **R5.3** File mtime is set to the original's mtime after write.
 
 ## 6. Audio
-- **R6.1** Audio is stream-copied by default (`-c:a copy`).
+- **R6.1** Audio is stream-copied by default (`-c:a copy`). Doing nothing to the
+  audio is the default on every platform; the user has to ask for anything else.
 - **R6.2** If the source audio codec is not legal in the target container, it is
   re-encoded to AAC 192 kbps and that is reported.
+- **R6.3** Audio re-encoding is **opt-in** and offered as a fixed short ladder,
+  never a free-form number: `keep` (the R6.1 stream copy, and the default),
+  `192k`, `160k`, `128k`. The codec is AAC. Exposed as `--audio` on the CLI and
+  as an "Audio" dropdown in the GUI settings panel, persisted like `mode`/`hw`.
+- **R6.4** Only the bitrate is set. Channel layout and sample rate are left
+  exactly as the source had them — no downmix, no resample.
+- **R6.5** **128 kbps is a hard floor.** A request below it is clamped up to
+  128 kbps and the clamp is always reported; it is never silently obeyed and
+  never silently dropped. The floor lives in exactly one constant
+  (`plan.AUDIO_MIN_KBPS`).
+- **R6.6** On a source with no audio track, the option is a no-op: the output
+  stays silent (`-an`) and the ignored request is reported.
+- **R6.7** R6.2 and R6.3 compose rather than stack: a file that needs a forced
+  re-encode *and* has a chosen bitrate is re-encoded once, at the chosen
+  bitrate, with the container reason reported once.
 
 ## 7. Honesty about results
 - **R7.1** Every job reports before size, after size, ratio, and wall time.

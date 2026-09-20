@@ -7,18 +7,24 @@ import pytest
 
 from compvdo.model import Caps, JobSpec, output_container
 from compvdo.plan import (
-    PlanError, build, choose_encoder, estimate, is_compressed_output,
-    output_path, rank, resolve_crf,
+    AUDIO_CHOICES, AUDIO_DEFAULT, AUDIO_MIN_KBPS, PlanError, build,
+    choose_encoder, estimate, is_compressed_output, output_path, rank,
+    resolve_audio, resolve_crf,
 )
 
 from .conftest import make_info
 
 
-def plan_for(info, caps, mode="medium", hw="off", crf=None, ext=None):
+def plan_for(info, caps, mode="medium", hw="off", crf=None, ext=None, audio="keep"):
     ext = ext or output_container(info.container)
     dst = info.path.with_name(f"{info.path.stem}_compressed.{ext}")
-    spec = JobSpec(src=info, dst=dst, mode=mode, hw=hw, crf=crf)
+    spec = JobSpec(src=info, dst=dst, mode=mode, hw=hw, crf=crf, audio=audio)
     return build(spec, caps, Path(f"/videos/.compvdo-tmp-1.{ext}"))
+
+
+def bitrate_of(plan):
+    """The -b:a value in the argv, or None when there isn't one."""
+    return plan.argv[plan.argv.index("-b:a") + 1] if "-b:a" in plan.argv else None
 
 
 # --- the ladder (R3) -------------------------------------------------------
@@ -282,3 +288,87 @@ def test_scan_stops_when_the_caller_says_so(tmp_path):
     entries, skipped = scan(tmp_path, caps, on_file=lambda n, t, p: seen.append(p),
                             should_continue=lambda: len(seen) < 2)
     assert len(seen) == 2, "scan ignored should_continue"
+
+
+# --- opt-in audio re-encode (R6.3 - R6.6) ----------------------------------
+
+def test_the_default_is_still_a_stream_copy(info, caps):
+    # R6.1 must survive Phase 2c: no flag, no re-encode, no -b:a at all.
+    p = plan_for(info, caps)                       # no audio= argument
+    assert p.audio_action == "copy"
+    assert bitrate_of(p) is None
+    assert AUDIO_DEFAULT == "keep" and AUDIO_CHOICES[0] == "keep"
+
+
+@pytest.mark.parametrize("choice,expected", [("192k", "192k"), ("160k", "160k"),
+                                             ("128k", "128k")])
+def test_each_fixed_option_sets_that_bitrate(info, caps, choice, expected):
+    p = plan_for(info, caps, audio=choice)         # R6.3
+    assert p.audio_action == "aac"
+    assert bitrate_of(p) == expected
+    assert "-c:a" in p.argv and p.argv[p.argv.index("-c:a") + 1] == "aac"
+
+
+def test_reencode_leaves_channels_and_sample_rate_alone(info, caps):
+    # R6.4 — bitrate only. -ac / -ar would resample and downmix behind the
+    # user's back, which is not what 'compress the audio' means.
+    p = plan_for(info, caps, audio="128k")
+    assert "-ac" not in p.argv and "-ar" not in p.argv
+
+
+def test_below_the_floor_is_clamped_and_said_out_loud(info, caps):
+    p = plan_for(info, caps, audio="96k")          # R6.5
+    assert bitrate_of(p) == f"{AUDIO_MIN_KBPS}k"
+    assert any("128" in n and "floor" in n for n in p.notes), \
+        "the clamp must be reported, not applied silently"
+
+
+def test_the_floor_lives_in_exactly_one_constant():
+    assert AUDIO_MIN_KBPS == 128
+    assert resolve_audio("64k")[0] == AUDIO_MIN_KBPS
+    assert resolve_audio("8")[0] == AUDIO_MIN_KBPS
+
+
+def test_resolve_audio_is_pure_and_keeps_legal_values(caps):
+    assert resolve_audio("keep") == (None, None)
+    assert resolve_audio(None) == (None, None)
+    assert resolve_audio("192k") == (192, None)
+    assert resolve_audio(160) == (160, None)
+
+
+def test_an_unknown_audio_option_is_an_error(info, caps):
+    with pytest.raises(PlanError):
+        plan_for(info, caps, audio="best")
+
+
+def test_a_silent_source_stays_silent_whatever_was_asked(caps):
+    # R6.6 — the option is a no-op, and says so rather than pretending.
+    p = plan_for(make_info(acodec=None), caps, audio="128k")
+    assert p.audio_action == "none"
+    assert "-an" in p.argv and bitrate_of(p) is None
+    assert any("no audio" in n for n in p.notes)
+
+
+def test_forced_reencode_still_happens_without_the_flag(caps):
+    # R6.2 is untouched: an illegal codec is re-encoded at 192k by default.
+    p = plan_for(make_info(acodec="flac"), caps)
+    assert p.audio_action == "aac" and bitrate_of(p) == "192k"
+    assert any("R6.2" in n for n in p.notes)
+
+
+def test_a_chosen_bitrate_wins_over_the_forced_default(caps):
+    # R6.2 + R6.3 compose: one re-encode, at the bitrate the user picked,
+    # and the container reason is still explained exactly once.
+    p = plan_for(make_info(acodec="flac"), caps, audio="128k")
+    assert p.audio_action == "aac" and bitrate_of(p) == "128k"
+    assert p.argv.count("-c:a") == 1
+    assert len([n for n in p.notes if "R6.2" in n]) == 1
+
+
+def test_a_legal_codec_in_mkv_can_still_be_re_encoded_on_request(caps):
+    # flac is legal in mkv, so R6.2 does not fire - but R6.3 still should.
+    i = make_info(path=Path("/videos/clip.mkv"), container="mkv", acodec="flac")
+    assert plan_for(i, caps).audio_action == "copy"
+    p = plan_for(i, caps, audio="160k")
+    assert p.audio_action == "aac" and bitrate_of(p) == "160k"
+    assert not any("R6.2" in n for n in p.notes)

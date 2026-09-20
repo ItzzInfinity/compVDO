@@ -17,6 +17,22 @@ data class VideoInfo(
     val dateModified: Long,    // epoch seconds
     val bitrate: Long,         // bits/s, estimated from size*8/duration if not available
     val relativePath: String,  // e.g. "DCIM/Camera"
+
+    // --- folder grouping (added for the folder-tile UI; defaulted so existing
+    // --- construction sites keep compiling) ---
+    /** MediaStore BUCKET_ID, or the same hash recomputed from the parent path. */
+    val bucketId: Long = 0L,
+    /** MediaStore BUCKET_DISPLAY_NAME, e.g. "Camera", "Download". */
+    val bucketDisplayName: String = "",
+    /**
+     * True when this row came from `MediaStore.Files` with a non-video
+     * `MEDIA_TYPE` — i.e. a video that was filed as a document/download
+     * (WhatsApp Documents, browser downloads). Kept because such items are the
+     * ones most likely to fail to open, and the UI may want to mark them.
+     */
+    val indexedAsDocument: Boolean = false,
+    /** True when discovered through a SAF tree grant rather than MediaStore. */
+    val fromDocumentTree: Boolean = false,
 ) {
     /** Bits per pixel — the ranking signal (R10.3) */
     val bpp: Double

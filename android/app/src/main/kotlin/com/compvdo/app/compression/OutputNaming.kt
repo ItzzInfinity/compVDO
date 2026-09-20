@@ -7,9 +7,16 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import com.compvdo.app.data.VideoInfo
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 /**
  * Handles output naming via MediaStore — implements R1.1, R1.2, R1.3.
+ *
+ * Every ContentResolver call here is a suspend function on Dispatchers.IO.
+ * They used to be plain functions invoked from the batch path, which runs on
+ * Dispatchers.Main.immediate — a MediaStore query and insert per file, on the
+ * UI thread, once per video in the batch.
  *
  * R1.1: Output is <stem>_compressed.<ext> beside the original.
  * R1.2: If that name exists, append (2), (3)… never overwrite.
@@ -30,7 +37,7 @@ object OutputNaming {
      * Insert a placeholder entry in MediaStore for the output file.
      * Handles R1.2 collision avoidance by checking existing entries.
      */
-    fun createOutputUri(context: Context, source: VideoInfo): Uri? {
+    suspend fun createOutputUri(context: Context, source: VideoInfo): Uri? = withContext(Dispatchers.IO) {
         var name = outputDisplayName(source)
         val relativePath = source.relativePath.ifBlank {
             "${Environment.DIRECTORY_MOVIES}/compVDO"
@@ -53,7 +60,7 @@ object OutputNaming {
             }
         }
 
-        return context.contentResolver.insert(
+        context.contentResolver.insert(
             MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
             values,
         )
@@ -62,31 +69,33 @@ object OutputNaming {
     /**
      * Mark the output as complete (clear IS_PENDING).
      */
-    fun finalizeOutput(context: Context, outputUri: Uri) {
+    suspend fun finalizeOutput(context: Context, outputUri: Uri) = withContext(Dispatchers.IO) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             val values = ContentValues().apply {
                 put(MediaStore.Video.Media.IS_PENDING, 0)
             }
             context.contentResolver.update(outputUri, values, null, null)
         }
+        Unit
     }
 
     /**
      * Remove a failed/cancelled output entry from MediaStore.
      */
-    fun deleteOutput(context: Context, outputUri: Uri) {
+    suspend fun deleteOutput(context: Context, outputUri: Uri) = withContext(Dispatchers.IO) {
         try {
             context.contentResolver.delete(outputUri, null, null)
         } catch (_: Exception) {
             // Best effort cleanup
         }
+        Unit
     }
 
     private fun nameExists(context: Context, name: String, relativePath: String): Boolean {
         val selection = "${MediaStore.Video.Media.DISPLAY_NAME} = ? AND ${MediaStore.Video.Media.RELATIVE_PATH} = ?"
         val args = arrayOf(name, relativePath)
         context.contentResolver.query(
-            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL),
+            MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY),
             arrayOf(MediaStore.Video.Media._ID),
             selection,
             args,

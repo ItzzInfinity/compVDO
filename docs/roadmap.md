@@ -76,20 +76,52 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 Full findings, with the evidence for each, are in `qa-checklist.md`.
 
 **Blocking — data loss:**
-- [ ] 3.7 **The "trash" is a permanent delete (R2.3).** `BatchRunner.trashOriginal()` documents `createTrashRequest` and calls `contentResolver.delete()`. Use `MediaStore.createTrashRequest`, honour the returned `IntentSender`, and stop swallowing `RecoverableSecurityException`
-- [ ] 3.8 **R8.3 does not check playability** yet gates the delete as though it does — the verifier reads a track header and asserts `playable = true`
-- [ ] 3.9 Confirmation dialog before deleting originals, naming targets and defaulting to the safe button (dev_guide.md §12)
+- [x] 3.7 **The "trash" is a permanent delete (R2.3).** `BatchRunner.trashOriginal()` documents `createTrashRequest` and calls `contentResolver.delete()`. Use `MediaStore.createTrashRequest`, honour the returned `IntentSender`, and stop swallowing `RecoverableSecurityException` — done 2026-09-20; new `compression/TrashRequest.kt` — `MediaStore.createTrashRequest` on API 30+, the `RecoverableSecurityException` IntentSender on 29, legacy delete on 28, each labelled honestly via `isRecoverable()`
+- [x] 3.8 **R8.3 does not check playability** yet gates the delete as though it does — the verifier reads a track header and asserts `playable = true` — done 2026-09-20; `Verifier.walkSamples()` now reads every sample of the video track and rejects a file whose last frame falls short of the declared duration — the header-only check could not fail
+- [x] 3.9 Confirmation dialog before deleting originals, naming targets and defaulting to the safe button (dev_guide.md §12) — done 2026-09-20; `DeleteOriginalsDialog` names up to 12 targets, states count and total size, says whether removal is recoverable on *this* device, and emphasises "Keep originals"
 
 **Significant:**
 - [ ] 3.10 Cancel does not stop the running file (R12.2) — the flag is only read between files, and nothing cancels the `Transformer`
-- [ ] 3.11 Open the output `"rw"`, not `"w"` — MP4 muxing must seek back to write `moov`
+- [x] 3.11 Open the output `"rw"`, not `"w"` — done 2026-09-20; the MP4 muxer seeks back to write `moov` and a write-only descriptor cannot
 - [ ] 3.12 Wire the foreground notification to real progress (`updateProgress` is never called) and request `POST_NOTIFICATIONS`
 
 **Divergences and gaps:**
 - [ ] 3.13 Align the R10.3 ranking with `plan.py` or correct the comment claiming parity; stop defaulting fps to 30 (R10.4)
-- [ ] 3.14 Move MediaStore work off the main thread
+- [x] 3.14 Move MediaStore work off the main thread — done 2026-09-20; `OutputNaming` create/finalize/delete and `getFileSize` are now suspend on Dispatchers.IO (the scanner already was). Also fixed `nameExists()` querying VOLUME_EXTERNAL while the insert targeted VOLUME_EXTERNAL_PRIMARY
 - [ ] 3.15 Add a test source set — there is currently none
 - [ ] 3.16 R11 preview and R9.2 batch resume are both absent on Android
+
+## Phase 3b — Android UX, requested 2026-09-20
+
+Source: `manual-task.md` → "Your issues & suggestions". Reference app for the
+navigation and log patterns: `~/Downloads/ytdlnis` (full source).
+
+**Ordering note:** 3b.6 (delete prompt) must not ship before 3.7 lands, or the
+app will cheerfully offer to permanently destroy footage.
+
+- [x] 3b.0 minSdk 26 → 28 (Android 9.0), per M3.3 — done 2026-09-20
+- [x] 3b.1 Redesign the launcher icon — the current mark is busy and reads as nothing at launcher size (see `reports/android/IMG_20260920_150915.jpg`) — done 2026-09-20; root cause was a safe-zone violation — the 0–100 viewport was stretched over the full 108dp canvas so both arrow tips sat ~13dp outside the 72dp guaranteed region and every launcher mask sliced them. Also: `<monochrome>` pointed at the four-colour drawable, and the background was pure white. Now a white play triangle between two bars on a blue gradient; verified rendered at 36/48/96/192px under circle and squircle masks
+- [ ] 3b.2 ytdlnis-style bottom navigation; everything currently on the opening screen moves into a **Home** tab
+- [x] 3b.3 Log system like ytdlnis: viewable in-app, **copy** button, and export/share — done 2026-09-20; `util/AppLog.kt` bounded ring buffer using the same TX/RX/INFO/WARN/ERR vocabulary as the desktop, plus `ui/screens/LogScreen.kt` with copy, send-via-share-sheet, clear and follow-tail
+- [ ] 3b.4 On Compress, a bottom sheet asking "default settings" or "override"
+- [ ] 3b.5 Preview: in-app player, or hand off to VLC / MX Player / the native viewer via intent (R11)
+- [x] 3b.6 After a batch finishes, offer to delete the originals — done 2026-09-20; `BatchRunner` no longer deletes anything at all. Only results that are OK **and** verified **and** smaller are ever offered, and the platform runs its own confirmation on API 29+
+- [x] 3b.7 The `Download` folder is not reachable on device — fix the scanner's coverage — done 2026-09-20; root cause was not a path filter — `MediaStore.Video.Media` is a view restricted to `media_type=3`, and videos landing in Download are indexed with a generic MIME as `MEDIA_TYPE_NONE`/`DOCUMENT`, so no query of the Video collection could ever return them. Now queries `MediaStore.Files` per volume with a MIME/extension selection
+- [ ] 3b.8 Album-style folder picker — **data layer landed 2026-09-20** (`VideoFolder`: bucket id, name, count, total size, and a representative item for the tile thumbnail). The Compose UI is the remaining half with big tiles (see `reports/android/Screenshot_20260920_150833.jpg`)
+  - [ ] 3b.8a Two view modes: big thumbnail grid, and the current list with a small thumbnail
+  - [ ] 3b.8b Keep the existing sort options in both modes
+  - [ ] 3b.8c Tapping anywhere on a row selects it, not just the text
+- [x] 3b.9 Cover WhatsApp videos **and** WhatsApp documents — done 2026-09-20; WhatsApp Video was already reachable; WhatsApp Documents is the same document-MIME class as Download and is now covered. `.nomedia` directories remain unreachable by any MediaStore query — `SafVideoScanner` is the sanctioned fallback
+- [ ] 3b.10 Audio compression on Android (desktop half done as 2c; mirror the same ladder and the 128 kbps floor): opt in, fixed options, never below 128 kbps
+
+## Phase 2c — Audio compression on desktop, requested 2026-09-20
+
+R6.1 currently stream-copies audio always. This adds an opt-in re-encode with
+the same fixed options the Android side offers, so both platforms behave alike.
+
+- [x] 2c.1 `--audio-bitrate` / mode ladder in `plan.py`, floored at 128 kbps — done 2026-09-20; `AUDIO_MIN_KBPS = 128` as the one named floor, `resolve_audio()` split out as a pure function so the clamp can be reported before anything encodes
+- [x] 2c.2 CLI flag and GUI control, defaulting to "keep original audio" — done 2026-09-20; `--audio {keep,192k,160k,128k}` on compress and preview, a GUI combo persisted via settings.json, both defaulting to `keep`
+- [x] 2c.3 Tests covering the floor and the copy-by-default behaviour — done 2026-09-20; 22 new tests — the default path is a packet-identical stream copy (verified by MD5 of the coded audio, not just argv), each rung lands within ffprobe tolerance, 64k clamps to 128k and says so, silent sources stay silent
 
 ## Phase 4 — Windows
 - [ ] 4.1 Path/encoding audit of the core (no POSIX assumptions, long paths, UTF-16 names)

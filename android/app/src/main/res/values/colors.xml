@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_launcher_background">#FFFFFF</color>
+    <!-- Flat fallback for the launcher background gradient (mid-tone of
+         ic_compvdo_background). Kept so anything referencing the colour still
+         resolves to the right hue instead of the old plain white. -->
+    <color name="ic_launcher_background">#0D74C4</color>
     <color name="seed">#0277BD</color>
 </resources>

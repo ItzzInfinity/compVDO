@@ -35,12 +35,12 @@ before it runs.
 
 Four real phone clips, `--mode medium`, software x265:
 
-| Clip | Before | After | Ratio | Time |
-|---|---|---|---|---|
-| `VID_20230715_162642.mp4` | 263.0 MB | 94.4 MB | **36 %** | 4:45 |
-| `video_20260731_224613.mp4` | 341.7 MB | 80.4 MB | **24 %** | 11:10 |
+| Clip                        | Before   | After    | Ratio    | Time  |
+| --------------------------- | -------- | -------- | -------- | ----- |
+| `VID_20230715_162642.mp4`   | 263.0 MB | 94.4 MB  | **36 %** | 4:45  |
+| `video_20260731_224613.mp4` | 341.7 MB | 80.4 MB  | **24 %** | 11:10 |
 | `video_20260705_064442.mp4` | 249.5 MB | 159.3 MB | **64 %** | 10:28 |
-| `video_20260705_062317.mp4` | 231.5 MB | 153.0 MB | **66 %** | 9:39 |
+| `video_20260705_062317.mp4` | 231.5 MB | 153.0 MB | **66 %** | 9:39  |
 
 **1.06 GB → 487 MB — 598.5 MB saved (55 %)**, every output verified, every
 original untouched.
@@ -201,12 +201,12 @@ python3 -m pytest -q      # 124 tests; the fast ones need no ffmpeg at all
 
 ## Status
 
-| Platform | State |
-|---|---|
-| **Linux CLI** | ✅ done, trialled on real phone footage |
-| **Linux GUI** | ✅ done, trialled |
-| **Android** | ⬜ next — Compose + Media3 `Transformer` |
-| **Windows** | ⬜ after that — same core, PyInstaller |
+| Platform      | State                                   |
+| ------------- | --------------------------------------- |
+| **Linux CLI** | ✅ done, trialled on real phone footage  |
+| **Linux GUI** | ✅ done, trialled                        |
+| **Android**   | ⬜ next — Compose + Media3 `Transformer` |
+| **Windows**   | ⬜ after that — same core, PyInstaller   |
 
 Android is a **re-implementation of the rules**, not a port of this code:
 ffmpeg-kit was retired in January 2025, so it uses Media3 `Transformer`

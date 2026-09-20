@@ -15,6 +15,7 @@ wrong file; that belongs in compvdo.plan.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QUrl
@@ -29,6 +30,7 @@ from PySide6.QtWidgets import (
 from ..batch import plan_jobs, prepare
 from ..cli import clock, human
 from ..model import MODES, JobResult, ScanEntry
+from ..plan import AUDIO_CHOICES, AUDIO_DEFAULT, resolve_audio
 from ..probe import FFmpegMissing
 from ..scan import sort_entries
 from ..cpu import describe as describe_cores
@@ -114,6 +116,7 @@ class MainWindow(QMainWindow):
         self._folder: Path | None = None
         self._caps = None
         self._busy = False              # dev_guide.md §7.5: exactly one flag
+        self._audio_clamp: str | None = None    # set while building, logged after
 
         self._build()
         self._load_caps()
@@ -123,6 +126,8 @@ class MainWindow(QMainWindow):
         # not fire for that. Without this, starting the app with a saved
         # 'archive' preference shows no warning at all (R3.2).
         self._sync_mode_dependent_widgets()
+        if self._audio_clamp:                    # R6.5, never silent
+            self._log("WARN", self._audio_clamp)
 
         last = self._settings["ui"].get("last_folder")
         if last and Path(last).is_dir():
@@ -250,6 +255,26 @@ class MainWindow(QMainWindow):
         self.hw.stateChanged.connect(self._persist)
         box.addWidget(self.hw)
 
+        # R6.3 — audio is opt-in. A fixed list, not a number box: the floor is
+        # then structural rather than something to validate after the fact.
+        box.addWidget(QLabel("Audio"))
+        self.audio = QComboBox()
+        self.audio.addItems([
+            "keep original (no re-encode)",
+            "AAC 192 kbps",
+            "AAC 160 kbps",
+            "AAC 128 kbps — smallest allowed",
+        ])
+        self.audio.setCurrentIndex(self._audio_index())
+        self.audio.currentIndexChanged.connect(self._on_audio_changed)
+        box.addWidget(self.audio)
+
+        self.audio_note = wrapped_label(
+            "Re-encoding audio saves a few MB per hour and costs a little "
+            "quality. Never goes below 128 kbps.")
+        self.audio_note.setVisible(False)
+        box.addWidget(self.audio_note)
+
         self.delete_original = QCheckBox("Delete originals after compressing")
         self.delete_original.setChecked(bool(self._settings["defaults"].get("delete_original")))
         self.delete_original.stateChanged.connect(self._on_delete_toggled)
@@ -346,9 +371,35 @@ class MainWindow(QMainWindow):
     def current_mode(self) -> str:
         return MODES[self.mode.currentIndex()]
 
+    def current_audio(self) -> str:
+        return AUDIO_CHOICES[self.audio.currentIndex()]
+
+    def _audio_index(self) -> int:
+        """Stored value -> combo row, clamping anything below the floor (R6.5).
+
+        A settings.json written by hand (or by an older build) can hold a
+        bitrate we no longer offer; it is pulled up to 128k rather than
+        silently honoured or crashing the window.
+        """
+        stored = self._settings["defaults"].get("audio", AUDIO_DEFAULT)
+        if stored in AUDIO_CHOICES:
+            return AUDIO_CHOICES.index(stored)
+        try:
+            kbps, note = resolve_audio(stored)
+        except Exception:
+            return 0
+        if kbps is None:
+            return 0
+        if note:
+            # The log widget does not exist yet at this point in _build().
+            self._audio_clamp = note
+        label = f"{kbps}k"
+        return AUDIO_CHOICES.index(label) if label in AUDIO_CHOICES else len(AUDIO_CHOICES) - 1
+
     def _persist(self) -> None:
         self._settings["defaults"]["mode"] = self.current_mode()
         self._settings["defaults"]["hw"] = "auto" if self.hw.isChecked() else "off"
+        self._settings["defaults"]["audio"] = self.current_audio()
         self._settings["defaults"]["delete_original"] = self.delete_original.isChecked()
         self._settings["ui"]["last_folder"] = str(self._folder) if self._folder else None
         save(self._settings)
@@ -356,6 +407,15 @@ class MainWindow(QMainWindow):
     def _sync_mode_dependent_widgets(self) -> None:
         self.archive_warning.setVisible(self.current_mode() == "archive")   # R3.2
         self.delete_note.setVisible(self.delete_original.isChecked())
+        self.audio_note.setVisible(self.current_audio() != AUDIO_DEFAULT)
+
+    def _on_audio_changed(self) -> None:
+        self._sync_mode_dependent_widgets()
+        self._persist()
+        choice = self.current_audio()
+        self._log("INFO", "audio will be stream-copied unchanged (R6.1)"
+                  if choice == AUDIO_DEFAULT
+                  else f"audio will be re-encoded to AAC {choice} (R6.3)")
 
     def _on_mode_changed(self) -> None:
         self._sync_mode_dependent_widgets()
@@ -511,6 +571,7 @@ class MainWindow(QMainWindow):
         self.btn_rescan.setEnabled(not busy and self._folder is not None)
         self.mode.setEnabled(not busy)
         self.hw.setEnabled(not busy)
+        self.audio.setEnabled(not busy)
         self.delete_original.setEnabled(not busy)
         self._update_buttons()
 
@@ -554,9 +615,12 @@ class MainWindow(QMainWindow):
         if delete and not self._confirm_delete(infos):
             return
 
+        audio = self.current_audio()
         specs, already = plan_jobs(
             infos, mode=mode, hw="auto" if self.hw.isChecked() else "off",
             delete_original=delete)
+        if audio != AUDIO_DEFAULT:
+            specs = [replace(s, audio=audio) for s in specs]
         for src, prev in already:
             self._log("WARN", f"skipped {src.name}: {prev.name} already exists")
         if not specs:
@@ -577,7 +641,7 @@ class MainWindow(QMainWindow):
         self._set_busy(True)
         self._log("TX", f"ffmpeg × {len(specs)} at mode={mode}, "
                         f"hw={'auto' if self.hw.isChecked() else 'off'}, "
-                        f"{describe_cores(self._cores())}")
+                        f"audio={audio}, {describe_cores(self._cores())}")
         self._encode_worker.start()
 
     def _cores(self) -> int | None:

@@ -26,3 +26,4 @@ android/app/local.properties
 *.aab
 build/
 .idea/
+android/.kotlin/

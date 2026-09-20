@@ -1,5 +1,8 @@
 package com.compvdo.app.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -17,6 +20,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import com.compvdo.app.R
 import com.compvdo.app.compression.BatchRunner
+import com.compvdo.app.compression.TrashRequest
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.VideoInfo
 import com.compvdo.app.ui.components.ProgressCard
@@ -44,6 +48,29 @@ fun CompressScreen(
         if (!uiState.isRunning && uiState.results.isEmpty()) {
             viewModel.startBatch(context, videos, mode, deleteOriginal)
         }
+    }
+
+    // The platform runs its own confirmation for a trash/delete request; this
+    // launcher carries its answer back.
+    val consentLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartIntentSenderForResult()
+    ) { result ->
+        viewModel.onConsentResult(TrashRequest.consentGranted(result.resultCode))
+    }
+
+    LaunchedEffect(uiState.pendingConsent) {
+        uiState.pendingConsent?.let { sender ->
+            consentLauncher.launch(IntentSenderRequest.Builder(sender).build())
+            viewModel.consentLaunched()
+        }
+    }
+
+    if (uiState.askToDelete) {
+        DeleteOriginalsDialog(
+            targets = uiState.deletable,
+            onConfirm = { viewModel.confirmDelete(context) },
+            onDismiss = { viewModel.dismissDeletePrompt() },
+        )
     }
 
     Scaffold(
@@ -116,6 +143,28 @@ fun CompressScreen(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
+
+                        if (uiState.deleteMessage.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = uiState.deleteMessage,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+
+                        // 3b.6 — offer, never assume. Only verified results that
+                        // actually shrank are ever offered (R7.2, R8.4).
+                        if (uiState.deletable.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            OutlinedButton(onClick = { viewModel.offerDeleteNow() }) {
+                                Text(
+                                    if (TrashRequest.isRecoverable())
+                                        "Move ${uiState.deletable.size} original(s) to trash"
+                                    else
+                                        "Delete ${uiState.deletable.size} original(s)"
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -131,6 +180,78 @@ fun CompressScreen(
             }
         }
     }
+}
+
+/**
+ * R2.2 / dev_guide.md §12 — confirm with specifics before anything is removed.
+ *
+ * Names the files, states the count and the total size, says plainly whether
+ * this is recoverable on *this* device, and focuses the safe button. There was
+ * previously no confirmation at all.
+ */
+@Composable
+private fun DeleteOriginalsDialog(
+    targets: List<VideoInfo>,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val shown = targets.take(12)
+    val totalSize = targets.sumOf { it.size }
+    val recoverable = TrashRequest.isRecoverable()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                if (recoverable) "Move the originals to the trash?"
+                else "Delete the originals permanently?"
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    "${targets.size} original file(s), ${FileSize.format(totalSize)}. " +
+                        "Each one compressed successfully, passed verification, and came " +
+                        "out smaller."
+                )
+                Spacer(Modifier.height(12.dp))
+                shown.forEach { video ->
+                    Text(
+                        "•  ${video.displayName}",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                if (targets.size > shown.size) {
+                    Text(
+                        "…and ${targets.size - shown.size} more",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = if (recoverable) {
+                        "They go to the system trash and can be restored from your " +
+                            "gallery for about 30 days."
+                    } else {
+                        "This version of Android has no media trash. Once removed, " +
+                            "these files cannot be recovered."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (recoverable) MaterialTheme.colorScheme.onSurfaceVariant
+                            else MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(if (recoverable) "Move to trash" else "Delete permanently")
+            }
+        },
+        dismissButton = {
+            // The safe choice is the emphasised one.
+            Button(onClick = onDismiss) { Text("Keep originals") }
+        },
+    )
 }
 
 @Composable

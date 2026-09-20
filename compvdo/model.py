@@ -86,6 +86,7 @@ class JobSpec:
     mode: str = "medium"
     crf: int | None = None       # overrides the ladder (R3.4)
     hw: str = "off"              # 'off' | 'auto'  (R4.2)
+    audio: str = "keep"          # 'keep' (copy) | '192k' | '160k' | '128k' (R6.3)
     delete_original: bool = False
 
     def __post_init__(self) -> None:

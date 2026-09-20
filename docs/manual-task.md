@@ -25,11 +25,12 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
 - Not needed until Android (Phase 3) is done — you asked for Android first.
 
 ### M3 — Android build environment for Phase 3  (unblocks 3.6)
-- [ ] 1. Android Studio installed, or a JDK 17 + command-line SDK tools.
-- [ ] 2. A physical device with USB debugging on (emulators have unreliable
+- [x] 1. Android Studio installed, or a JDK 17 + command-line SDK tools.
+- [x] 2. A physical device with USB debugging on (emulators have unreliable
       hardware video encoders — this matters for this app specifically).
-- [ ] 3. Minimum Android version you want to support (Media3 Transformer is
-      solid from API 26; API 33+ gives the nicer photo-picker permission).
+- [x] 3. Minimum Android version — **answered: Android 9.0 (API 28)**, applied
+      as roadmap 3b.0. Note API 28 keeps the legacy storage permission path
+      alive, which is relevant to the `Download` folder item (3b.7).
 - **This is the next thing that will block me.** Phases 1 and 2 (Linux CLI and GUI) are complete.
 
 ### M4 — Decisions I need from you  (unblocks nothing; changes defaults)
@@ -67,6 +68,59 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
       layout you picked **and** keep every scaffold command working with no
       flag. Your four original names live on as `docs/Architecture.md`,
       `docs/ToDo.md`, `docs/memory.md`, `docs/manualTasks.md`.
-
+- [x] Fix android Icon — **Fixed 2026-09-20.** Root cause was geometry, not
+      taste: `viewportWidth=100` on a 108dp canvas stretched the art so both
+      arrow tips sat ~13dp outside the 72dp guaranteed region and every launcher
+      mask clipped them. `<monochrome>` also pointed at the four-colour drawable
+      and the background was pure white — hence the indistinct white circle on
+      your home screen. Now a white play triangle between two compression bars
+      on a blue gradient; rendered and checked at 36/48/96/192px under circle
+      and squircle masks.
+- [~] Follow `/home/itzzinfinity/Downloads/ytdlnis/` tab style
+  - [ ] Whatever there is residing in the opening screen right now move them in `Home` tab — roadmap 3b.2, not started
+  - [x] Have a log system like `ytdlnis` which user can send later or view (provide copy option there)
+        — **Done 2026-09-20.** `util/AppLog.kt` + a Log screen with copy, send
+        (share sheet), clear and follow-tail. Uses the same `[TX]/[RX]/[INFO]/
+        [WARN]/[ERR]` tags as the desktop build, so a log pasted from the phone
+        reads identically to one from the CLI.
+  - [ ] when applying `compress` give a small tab -- ask user to go with default settings or to override settings — roadmap 3b.4, not started
+- [ ] Make a preview system … — roadmap 3b.5, not started
+- [x] Suggest pop-up to delete file after compression is finished — **Done
+      2026-09-20.** This turned out to be the fix for a data-loss bug as well:
+      the app used to delete during the batch with no prompt at all, and the
+      "trash" was a permanent delete. Now nothing is removed during the batch;
+      afterwards you are asked, and only verified, genuinely-smaller results are
+      offered.
+- [x] Cant access `Download` folder right now in mobile — **Fixed 2026-09-20.**
+      Root cause: `MediaStore.Video.Media` is not a folder listing, it is the
+      files table filtered to `media_type = 3`. A video downloaded by a browser
+      is indexed with a generic MIME as `MEDIA_TYPE_NONE`/`DOCUMENT`, so no
+      query of the Video collection could ever return it. Now queries
+      `MediaStore.Files` per volume with a MIME/extension selection. **Needs
+      device confirmation** — see `qa-checklist.md`.
+- [~] Implement Big tiles like viewers palettes to choose folder like my [`ALBUMs`](/reports/android/Screenshot_20260920_150833.jpg)
+      — **data layer done 2026-09-20**, Compose UI still to build (roadmap 3b.8).
+      Folders now carry a bucket id, name, video count, total size and a
+      representative item for the tile thumbnail.
+  - [ ] Two View options `Thumbnail big` & current list view (but with small thumbnail)
+  - [ ] There should be sorting options which are present currently
+  - [ ] Single click on the whole title selects the file not just the textbox area
+- [x] It will also cover whatsapp videos and whatsapp documents — **Done
+      2026-09-20.** WhatsApp Video was already reachable. WhatsApp Documents is
+      the same document-MIME problem as Download and is now covered. One case
+      genuinely cannot be fixed by any MediaStore query: a directory holding a
+      `.nomedia` marker is excluded from the index entirely. A SAF folder-grant
+      fallback exists for that; check with
+      `adb shell ls -a` whether your handset has one there.
+- [~] Apply audio compression throughout all OS — **desktop done 2026-09-20**,
+      Android still to do (roadmap 3b.10).
+  - [x] ask whether to compress or not — default is `keep`, which is a genuine
+        packet-level stream copy (verified: the coded audio MD5 is identical to
+        the source, not merely "about the same").
+  - [x] Give fix options — a fixed ladder, not a free-form number:
+        `keep` / `192k` / `160k` / `128k`, on the CLI and in the GUI.
+  - [x] should not be less than 128kbps — one named constant
+        (`AUDIO_MIN_KBPS = 128`); a lower request is clamped **and** reported
+        rather than silently obeyed.
 ## Completed
 <!-- Move finished items down here with the date. -->
