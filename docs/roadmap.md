@@ -25,13 +25,13 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] Alias user-requested filenames to the docs set — done 2026-09-20; Architecture.md/ToDo.md/memory.md/manualTasks.md are symlinks, verified with `ls -l`
 
 ## Phase 1 — Linux core + CLI  ← top priority
-- [ ] 1.1 Repo skeleton: `compvdo/` package, `pyproject.toml`, `.gitignore`, `git init`
-- [ ] 1.2 `model.py` — the dataclasses from `data-model.md`
-- [ ] 1.3 `probe.py` — ffprobe → `MediaInfo`, rotation from the display matrix, bitrate fallback
-- [ ] 1.4 `probe.py` — `Caps` detection + cache in settings.json (R4.3)
-- [ ] 1.5 `plan.py` — quality ladder → ffmpeg argv, pure function (R3, R5, R6, R1.3)
-- [ ] 1.6 `plan.py` — bits-per-pixel suggestion ranking (R10.3)
-- [ ] 1.7 `tests/test_plan.py` — the encoder/container/rotation matrix, no ffmpeg needed
+- [x] 1.1 Repo skeleton: `compvdo/` package, `pyproject.toml`, `.gitignore`, `git init` — done 2026-09-20; stdlib-only core declared in pyproject, PySide6/pytest as extras; git initialised and Phase 0 committed
+- [x] 1.2 `model.py` — the dataclasses from `data-model.md` — done 2026-09-20; 5 frozen dataclasses + display_width/height and bpp properties; JobSpec enforces invariants 1-2 at construction
+- [x] 1.3 `probe.py` — ffprobe → `MediaInfo`, rotation from the display matrix, bitrate fallback — done 2026-09-20; rotation read from side-data then the legacy tag, verified against a real rotated clip (both give 270)
+- [x] 1.4 `probe.py` — `Caps` detection + cache in settings.json (R4.3) — done 2026-09-20; detect_caps() found libx265/ffv1/hevc_vaapi + /dev/dri/renderD128 on this AMD box; caching lands with settings.py in 1.14
+- [x] 1.5 `plan.py` — quality ladder → ffmpeg argv, pure function (R3, R5, R6, R1.3) — done 2026-09-20; pure build() covering 4 modes x 5 encoder families; a real medium encode ran clean at ratio 0.448
+- [x] 1.6 `plan.py` — bits-per-pixel suggestion ranking (R10.3) — done 2026-09-20; estimate()/rank() are pure arithmetic, lenient on already-HEVC, and return 0 rather than inventing a saving
+- [x] 1.7 `tests/test_plan.py` — the encoder/container/rotation matrix, no ffmpeg needed — done 2026-09-20; 44 tests pass in 0.06s with no ffmpeg, covering ladder/encoder/audio/naming/ranking
 - [ ] 1.8 `encode.py` — temp-file discipline, `-progress` parsing, cancel (R2.1, R12.2, R12.3)
 - [ ] 1.9 `verify.py` — R8.1–R8.3 checks
 - [ ] 1.10 `trash.py` — `gio trash` with XDG-spec fallback (R2.3)
