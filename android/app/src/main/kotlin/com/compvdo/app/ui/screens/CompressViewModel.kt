@@ -1,22 +1,29 @@
 package com.compvdo.app.ui.screens
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.util.UnstableApi
 import android.content.IntentSender
 import com.compvdo.app.compression.BatchRunner
 import com.compvdo.app.compression.TrashRequest
+import com.compvdo.app.data.AudioSetting
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.VideoInfo
 import com.compvdo.app.service.CompressionService
 import com.compvdo.app.util.AppLog
 import com.compvdo.app.util.FileSize
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 data class CompressUiState(
     val isRunning: Boolean = false,
@@ -44,6 +51,19 @@ class CompressViewModel : ViewModel() {
     private val _uiState = MutableStateFlow(CompressUiState())
     val uiState: StateFlow<CompressUiState> = _uiState.asStateFlow()
 
+    /**
+     * The running batch.
+     *
+     * R12.2 lives on this reference. Cancel used to flip a Boolean that
+     * `BatchRunner` only read *between* files, so an eight-minute-in encode ran
+     * to completion regardless. Cancelling this Job instead propagates into
+     * `TransformerEngine`'s `suspendCancellableCoroutine`, whose
+     * `invokeOnCancellation` hook calls `Transformer.cancel()` — the hook was
+     * always there, nothing ever fired it.
+     */
+    private var batchJob: Job? = null
+
+    /** Between-files courtesy flag; the Job above is what actually stops work. */
     private var isCancelled = false
 
     /** Whether the user asked to be offered a delete once the batch finishes. */
@@ -54,6 +74,7 @@ class CompressViewModel : ViewModel() {
         videos: List<VideoInfo>,
         mode: CompressionMode,
         deleteOriginal: Boolean,
+        audio: AudioSetting = AudioSetting.DEFAULT,
     ) {
         offerDelete = deleteOriginal
         if (_uiState.value.isRunning) return
@@ -71,18 +92,19 @@ class CompressViewModel : ViewModel() {
 
         AppLog.tx(
             "compress ${videos.size} file(s), mode=${mode.label}, " +
-                "offerDelete=$deleteOriginal"
+                "audio=${audio.label}, offerDelete=$deleteOriginal"
         )
 
         // Start foreground service
         CompressionService.start(context)
 
-        viewModelScope.launch {
+        batchJob = viewModelScope.launch {
             try {
                 val results = BatchRunner.runBatch(
                     context = context,
                     videos = videos,
                     mode = mode,
+                    audio = audio,
                     onProgress = { fileIndex, totalFiles, fileProgress ->
                         val video = videos.getOrNull(fileIndex)
                         _uiState.update { state ->
@@ -95,6 +117,17 @@ class CompressViewModel : ViewModel() {
                                 overallProgress = overall,
                             )
                         }
+                        // 3.12 — the notification now actually moves. Posting to
+                        // the service's own NOTIFICATION_ID updates the
+                        // foreground notification in place, so no binding is
+                        // needed; CompressionService drops duplicate values and
+                        // no-ops when notifications are not permitted.
+                        CompressionService.updateProgress(
+                            context,
+                            "${video?.displayName ?: "Compressing"} " +
+                                "(${fileIndex + 1}/$totalFiles)",
+                            fileProgress,
+                        )
                     },
                     onFileComplete = { result ->
                         val ratio = result.ratio?.let { r -> " (${(r * 100).toInt()}%)" } ?: ""
@@ -145,19 +178,55 @@ class CompressViewModel : ViewModel() {
                         askToDelete = offerDelete && deletable.isNotEmpty(),
                     )
                 }
+            } catch (c: CancellationException) {
+                // BatchRunner has already recorded the CANCELLED results and
+                // swept the unfinished MediaStore row; all that is left is to
+                // put the UI back into a resting state. NonCancellable because
+                // this coroutine is, by definition, already cancelled.
+                withContext(NonCancellable) {
+                    AppLog.warn("batch cancelled by the user")
+                    _uiState.update { it.copy(isRunning = false, cancelled = true) }
+                }
+                throw c
             } catch (e: Exception) {
                 AppLog.err("batch aborted: ${e.message}")
                 _uiState.update { it.copy(isRunning = false) }
             } finally {
+                // Runs on the cancellation path too: the foreground service is
+                // always released.
                 CompressionService.stop(context)
+                batchJob = null
             }
         }
     }
 
+    /**
+     * Stop the batch, including the file currently being encoded (R12.2).
+     *
+     * **Threading matters here.** `Transformer` was built and started on the
+     * main looper (the batch runs on `Dispatchers.Main.immediate`), and Media3
+     * calls `verifyApplicationThread()` inside `Transformer.cancel()`.
+     * `invokeOnCancellation` runs on whichever thread called `Job.cancel()`, so
+     * cancelling from a worker thread would call `Transformer.cancel()` off the
+     * application thread and throw. We therefore bounce to the main looper
+     * unless we are already on it.
+     */
     fun cancel() {
-        AppLog.warn("cancel requested")
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            Handler(Looper.getMainLooper()).post { cancel() }
+            return
+        }
+        val job = batchJob
+        if (job == null || !job.isActive) {
+            AppLog.info("cancel requested, but nothing is running")
+            return
+        }
+        AppLog.warn("cancel requested — stopping the export now")
         isCancelled = true
         _uiState.update { it.copy(cancelled = true) }
+        // Cancelling on the main looper means invokeOnCancellation — and so
+        // Transformer.cancel() — also runs on the main looper.
+        job.cancel(CancellationException("Cancelled by user"))
     }
 
     // ---------------------------------------------------------------- delete

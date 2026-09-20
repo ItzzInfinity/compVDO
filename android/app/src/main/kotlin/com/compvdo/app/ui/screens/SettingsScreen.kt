@@ -1,16 +1,19 @@
 package com.compvdo.app.ui.screens
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.compvdo.app.BuildConfig
 import com.compvdo.app.R
+import com.compvdo.app.data.AudioSetting
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.PreferencesRepo
 import kotlinx.coroutines.launch
@@ -29,6 +32,7 @@ fun SettingsScreen(
 
     val currentMode by prefs.compressionMode.collectAsState(initial = CompressionMode.DEFAULT)
     val deleteOriginal by prefs.deleteOriginal.collectAsState(initial = false)
+    val audioSetting by prefs.audioSetting.collectAsState(initial = AudioSetting.DEFAULT)
 
     Scaffold(
         topBar = {
@@ -104,6 +108,47 @@ fun SettingsScreen(
                         scope.launch { prefs.setDeleteOriginal(checked) }
                     },
                 )
+            }
+
+            HorizontalDivider()
+
+            // R6.3 — the opt-in audio ladder. KEEP is a true stream copy, so
+            // the default costs the user nothing.
+            Text(
+                text = "Audio",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = "Audio is copied untouched unless you choose otherwise. " +
+                    "The lowest offered is ${com.compvdo.app.data.AUDIO_MIN_KBPS} kbps.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            AudioSetting.entries.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = audioSetting == option,
+                            onClick = { scope.launch { prefs.setAudioSetting(option) } },
+                        )
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = audioSetting == option,
+                        onClick = { scope.launch { prefs.setAudioSetting(option) } },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(option.label, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            option.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
 
             HorizontalDivider()

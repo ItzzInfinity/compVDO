@@ -1,5 +1,8 @@
 package com.compvdo.app.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,6 +12,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Cancel
+import androidx.compose.material.icons.filled.PlayCircleOutline
+import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,15 +21,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import com.compvdo.app.R
 import com.compvdo.app.compression.BatchRunner
 import com.compvdo.app.compression.TrashRequest
+import com.compvdo.app.data.AudioSetting
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.VideoInfo
 import com.compvdo.app.ui.components.ProgressCard
+import com.compvdo.app.util.AppLog
 import com.compvdo.app.util.FileSize
+import com.compvdo.app.util.VideoPlayback
 
 /**
  * Compression screen — shows progress during batch compression.
@@ -37,16 +47,48 @@ fun CompressScreen(
     videos: List<VideoInfo>,
     mode: CompressionMode,
     deleteOriginal: Boolean,
+    audio: AudioSetting = AudioSetting.DEFAULT,
     onNavigateBack: () -> Unit,
     viewModel: CompressViewModel = viewModel(),
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
 
-    // Start compression when screen opens
-    LaunchedEffect(videos) {
-        if (!uiState.isRunning && uiState.results.isEmpty()) {
-            viewModel.startBatch(context, videos, mode, deleteOriginal)
+    // 3.12 — POST_NOTIFICATIONS was declared in the manifest and never asked
+    // for, so on API 33+ the foreground notification simply never appeared.
+    // Ask here, at the one moment the reason is obvious (a batch is about to
+    // start), rather than at launch. The answer gates the notification and
+    // nothing else: a refusal must never stop the compression.
+    var notificationAsked by rememberSaveable { mutableStateOf(false) }
+
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        AppLog.info(
+            if (granted) "notification permission granted"
+            else "notification permission refused — compressing without progress in the shade"
+        )
+        notificationAsked = true
+    }
+
+    LaunchedEffect(Unit) {
+        val needed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        if (needed) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            notificationAsked = true
+        }
+    }
+
+    // Start compression once the permission question has been settled, whatever
+    // the answer was.
+    LaunchedEffect(videos, notificationAsked) {
+        if (notificationAsked && !uiState.isRunning && uiState.results.isEmpty()) {
+            viewModel.startBatch(context, videos, mode, deleteOriginal, audio)
         }
     }
 
@@ -256,6 +298,7 @@ private fun DeleteOriginalsDialog(
 
 @Composable
 private fun ResultItem(result: BatchRunner.JobResult) {
+    val context = LocalContext.current
     val color = when (result.status) {
         BatchRunner.Status.OK -> MaterialTheme.colorScheme.primary
         BatchRunner.Status.GREW -> MaterialTheme.colorScheme.error
@@ -292,6 +335,35 @@ private fun ResultItem(result: BatchRunner.JobResult) {
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = color,
+                )
+            }
+
+            // 3b.5 — compare the two without leaving the app: both open in
+            // whichever player the user already trusts.
+            if (result.outputUri != null) {
+                IconButton(
+                    onClick = {
+                        VideoPlayback.open(
+                            context, result.outputUri, "video/*", "Play the compressed file",
+                        )
+                    },
+                ) {
+                    Icon(
+                        Icons.Default.PlayCircleOutline,
+                        contentDescription = "Play the compressed file",
+                    )
+                }
+            }
+            IconButton(
+                onClick = {
+                    VideoPlayback.open(
+                        context, result.source.uri, result.source.mimeType, "Play the original",
+                    )
+                },
+            ) {
+                Icon(
+                    Icons.Outlined.PlayCircleOutline,
+                    contentDescription = "Play the original",
                 )
             }
 

@@ -81,9 +81,9 @@ Full findings, with the evidence for each, are in `qa-checklist.md`.
 - [x] 3.9 Confirmation dialog before deleting originals, naming targets and defaulting to the safe button (dev_guide.md §12) — done 2026-09-20; `DeleteOriginalsDialog` names up to 12 targets, states count and total size, says whether removal is recoverable on *this* device, and emphasises "Keep originals"
 
 **Significant:**
-- [ ] 3.10 Cancel does not stop the running file (R12.2) — the flag is only read between files, and nothing cancels the `Transformer`
+- [x] 3.10 Cancel does not stop the running file (R12.2) — the flag is only read between files, and nothing cancels the `Transformer` — done 2026-09-20; cancel now cancels the coroutine `Job`, which fires `invokeOnCancellation` → `Transformer.cancel()`; `cancel()` bounces to the main looper first because Media3 calls `verifyApplicationThread()`. Also fixed `catch (Exception)` swallowing `CancellationException` (the batch carried on to the next file) and cleanup now runs under `NonCancellable`, without which the orphaned `IS_PENDING` row was never removed
 - [x] 3.11 Open the output `"rw"`, not `"w"` — done 2026-09-20; the MP4 muxer seeks back to write `moov` and a write-only descriptor cannot
-- [ ] 3.12 Wire the foreground notification to real progress (`updateProgress` is never called) and request `POST_NOTIFICATIONS`
+- [x] 3.12 Wire the foreground notification to real progress (`updateProgress` is never called) and request `POST_NOTIFICATIONS` — done 2026-09-20; the notification is driven from a companion-object `updateProgress` posting to the same id the service went foreground with — no binder needed, which is why the old instance method was unreachable. `POST_NOTIFICATIONS` is requested when a batch starts, and a refusal costs the notification, never the compression
 
 **Divergences and gaps:**
 - [ ] 3.13 Align the R10.3 ranking with `plan.py` or correct the comment claiming parity; stop defaulting fps to 30 (R10.4)
@@ -101,18 +101,18 @@ app will cheerfully offer to permanently destroy footage.
 
 - [x] 3b.0 minSdk 26 → 28 (Android 9.0), per M3.3 — done 2026-09-20
 - [x] 3b.1 Redesign the launcher icon — the current mark is busy and reads as nothing at launcher size (see `reports/android/IMG_20260920_150915.jpg`) — done 2026-09-20; root cause was a safe-zone violation — the 0–100 viewport was stretched over the full 108dp canvas so both arrow tips sat ~13dp outside the 72dp guaranteed region and every launcher mask sliced them. Also: `<monochrome>` pointed at the four-colour drawable, and the background was pure white. Now a white play triangle between two bars on a blue gradient; verified rendered at 36/48/96/192px under circle and squircle masks
-- [ ] 3b.2 ytdlnis-style bottom navigation; everything currently on the opening screen moves into a **Home** tab
+- [x] 3b.2 ytdlnis-style bottom navigation; everything currently on the opening screen moves into a **Home** tab — done 2026-09-20; bottom NavigationBar with Home / Log / Settings; everything from the old opening screen is now the Home tab, and tab switches preserve each tab's state (`saveState`/`restoreState`). The bar hides during a batch so nobody tabs away and assumes it stopped
 - [x] 3b.3 Log system like ytdlnis: viewable in-app, **copy** button, and export/share — done 2026-09-20; `util/AppLog.kt` bounded ring buffer using the same TX/RX/INFO/WARN/ERR vocabulary as the desktop, plus `ui/screens/LogScreen.kt` with copy, send-via-share-sheet, clear and follow-tail
-- [ ] 3b.4 On Compress, a bottom sheet asking "default settings" or "override"
-- [ ] 3b.5 Preview: in-app player, or hand off to VLC / MX Player / the native viewer via intent (R11)
+- [x] 3b.4 On Compress, a bottom sheet asking "default settings" or "override" — done 2026-09-20; `CompressOptionsSheet` — opens showing what the defaults *are* so the common case is one tap, and "Change settings" expands the controls in place rather than bouncing to Settings and losing the selection
+- [x] 3b.5 Preview: in-app player, or hand off to VLC / MX Player / the native viewer via intent (R11) — done 2026-09-20; `util/VideoPlayback.kt` hands off to whichever player the user already has (chooser, not the silent default). A play button on each row, and on each result both the original and the output, so the two can be compared. Chose hand-off over an in-app ExoPlayer: their player already handles codecs, gestures and rotation, and a second decoder path alongside Transformer is a maintenance cost for no gain
 - [x] 3b.6 After a batch finishes, offer to delete the originals — done 2026-09-20; `BatchRunner` no longer deletes anything at all. Only results that are OK **and** verified **and** smaller are ever offered, and the platform runs its own confirmation on API 29+
 - [x] 3b.7 The `Download` folder is not reachable on device — fix the scanner's coverage — done 2026-09-20; root cause was not a path filter — `MediaStore.Video.Media` is a view restricted to `media_type=3`, and videos landing in Download are indexed with a generic MIME as `MEDIA_TYPE_NONE`/`DOCUMENT`, so no query of the Video collection could ever return them. Now queries `MediaStore.Files` per volume with a MIME/extension selection
-- [ ] 3b.8 Album-style folder picker — **data layer landed 2026-09-20** (`VideoFolder`: bucket id, name, count, total size, and a representative item for the tile thumbnail). The Compose UI is the remaining half with big tiles (see `reports/android/Screenshot_20260920_150833.jpg`)
-  - [ ] 3b.8a Two view modes: big thumbnail grid, and the current list with a small thumbnail
-  - [ ] 3b.8b Keep the existing sort options in both modes
-  - [ ] 3b.8c Tapping anywhere on a row selects it, not just the text
+- [x] 3b.8 Album-style folder picker — done 2026-09-20; 3-column `LazyVerticalGrid` of folder tiles with a Coil video-frame thumbnail, name, count and total size, matching the referenced gallery screenshot; opening one drills into its videos and Back returns to the grid
+  - [x] 3b.8a Two view modes — done 2026-09-20; grid of big tiles or a list with a 52dp thumbnail, toggled from the app bar
+  - [x] 3b.8b Sort options kept — done 2026-09-20; the same `SortBar` shows on the album grid and inside a folder, in both view modes
+  - [x] 3b.8c Whole row selects — done 2026-09-20; the card carries the `clickable`, and tiles toggle on tap anywhere
 - [x] 3b.9 Cover WhatsApp videos **and** WhatsApp documents — done 2026-09-20; WhatsApp Video was already reachable; WhatsApp Documents is the same document-MIME class as Download and is now covered. `.nomedia` directories remain unreachable by any MediaStore query — `SafVideoScanner` is the sanctioned fallback
-- [ ] 3b.10 Audio compression on Android (desktop half done as 2c; mirror the same ladder and the 128 kbps floor): opt in, fixed options, never below 128 kbps
+- [x] 3b.10 Audio compression on Android (desktop half done as 2c; mirror the same ladder and the 128 kbps floor): opt in, fixed options, never below 128 kbps — done 2026-09-20; `AudioSetting` mirrors the desktop ladder (keep/192/160/128) with `AUDIO_MIN_KBPS` as the one floor; `KEEP` guarantees pass-through by never calling `setAudioMimeType`, so Transformer transmuxes the track
 
 ## Phase 2c — Audio compression on desktop, requested 2026-09-20
 

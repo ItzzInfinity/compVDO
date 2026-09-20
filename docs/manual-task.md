@@ -76,15 +76,30 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
       your home screen. Now a white play triangle between two compression bars
       on a blue gradient; rendered and checked at 36/48/96/192px under circle
       and squircle masks.
-- [~] Follow `/home/itzzinfinity/Downloads/ytdlnis/` tab style
-  - [ ] Whatever there is residing in the opening screen right now move them in `Home` tab — roadmap 3b.2, not started
+- [x] Follow `/home/itzzinfinity/Downloads/ytdlnis/` tab style
+  - [x] Whatever there is residing in the opening screen right now move them in `Home` tab
+        — **Done 2026-09-20.** Bottom bar with Home / Log / Settings; tab
+        switches keep each tab's state, and the bar hides during a batch so
+        nobody tabs away and assumes it stopped.
   - [x] Have a log system like `ytdlnis` which user can send later or view (provide copy option there)
         — **Done 2026-09-20.** `util/AppLog.kt` + a Log screen with copy, send
         (share sheet), clear and follow-tail. Uses the same `[TX]/[RX]/[INFO]/
         [WARN]/[ERR]` tags as the desktop build, so a log pasted from the phone
         reads identically to one from the CLI.
-  - [ ] when applying `compress` give a small tab -- ask user to go with default settings or to override settings — roadmap 3b.4, not started
-- [ ] Make a preview system … — roadmap 3b.5, not started
+  - [x] when applying `compress` give a small tab -- ask user to go with default
+        settings or to override settings — **Done 2026-09-20.** A bottom sheet
+        that opens showing what your defaults *are*, so the common case is one
+        tap on Start; "Change settings" expands quality, audio and the delete
+        option in place rather than bouncing you to Settings and losing the
+        selection.
+- [x] Make a preview system — **Done 2026-09-20.** Took the hand-off option:
+      a play button on every row, and on each finished job buttons for both the
+      original and the compressed file so you can compare them. Opens a chooser,
+      so VLC / MX Player / the stock viewer are all offered rather than silently
+      using whatever default was set once. Chose this over an in-app viewer
+      because your player already handles codecs, subtitles, gestures and
+      rotation better than a first attempt would, and a second decoder path
+      alongside the Transformer one is upkeep for no gain.
 - [x] Suggest pop-up to delete file after compression is finished — **Done
       2026-09-20.** This turned out to be the fix for a data-loss bug as well:
       the app used to delete during the batch with no prompt at all, and the
@@ -98,13 +113,18 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
       query of the Video collection could ever return it. Now queries
       `MediaStore.Files` per volume with a MIME/extension selection. **Needs
       device confirmation** — see `qa-checklist.md`.
-- [~] Implement Big tiles like viewers palettes to choose folder like my [`ALBUMs`](/reports/android/Screenshot_20260920_150833.jpg)
-      — **data layer done 2026-09-20**, Compose UI still to build (roadmap 3b.8).
-      Folders now carry a bucket id, name, video count, total size and a
-      representative item for the tile thumbnail.
-  - [ ] Two View options `Thumbnail big` & current list view (but with small thumbnail)
-  - [ ] There should be sorting options which are present currently
-  - [ ] Single click on the whole title selects the file not just the textbox area
+- [x] Implement Big tiles like viewers palettes to choose folder like my [`ALBUMs`](/reports/android/Screenshot_20260920_150833.jpg)
+      — **Done 2026-09-20.** Three-column grid of folder tiles with a video-frame
+      thumbnail, the folder name, count and size, matching your screenshot.
+      Opening one drills into its videos; Back returns to the grid.
+  - [x] Two View options `Thumbnail big` & current list view (but with small
+        thumbnail) — toggled from the app bar; the list rows now carry a 52dp
+        thumbnail.
+  - [x] There should be sorting options which are present currently — the same
+        sort chips show on the album grid and inside a folder, in both view modes.
+  - [x] Single click on the whole title selects the file not just the textbox
+        area — the whole card carries the click now, and tiles toggle on a tap
+        anywhere. **Root cause:** only the `Checkbox` had a handler.
 - [x] It will also cover whatsapp videos and whatsapp documents — **Done
       2026-09-20.** WhatsApp Video was already reachable. WhatsApp Documents is
       the same document-MIME problem as Download and is now covered. One case
@@ -112,8 +132,8 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
       `.nomedia` marker is excluded from the index entirely. A SAF folder-grant
       fallback exists for that; check with
       `adb shell ls -a` whether your handset has one there.
-- [~] Apply audio compression throughout all OS — **desktop done 2026-09-20**,
-      Android still to do (roadmap 3b.10).
+- [x] Apply audio compression throughout all OS — **Done 2026-09-20 on both.**
+      Android mirrors the desktop ladder rather than sharing code, as planned.
   - [x] ask whether to compress or not — default is `keep`, which is a genuine
         packet-level stream copy (verified: the coded audio MD5 is identical to
         the source, not merely "about the same").

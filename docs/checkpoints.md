@@ -7,7 +7,70 @@
 > Newest first. New blocks are prepended by
 > `node <skill>/scaffold.mjs checkpoint --title="…"`.
 
-## Current state — 2026-09-20 (session 6) — Android data-loss fixed; icon, scanner, log and desktop audio landed
+## Current state — 2026-09-20 (session 7) — Android UX batch: tabs, album grid, log, preview, audio
+
+- **Current phase:** 3 — Android. The user's whole `manual-task.md` batch is closed.
+- **Last completed task:** 3b.5 preview playback
+- **Next task:** nothing is queued. Remaining known gaps are 3.13, 3.15 (no test source set) and 3.16 (R9.2 batch resume). Awaiting the user's device validation.
+
+### Session summary
+Closed every item in the user's batch. Five sub-agents were used across two
+rounds; the last two were killed mid-edit by a session rate limit and I finished
+their work by hand.
+
+1. Bottom navigation (Home / Log / Settings), album-style folder grid with two
+   view modes, whole-row selection, compress options bottom sheet.
+2. Log screen with copy/send/clear, using the desktop's five tags.
+3. Preview by hand-off to an external player, for both the original and output.
+4. Audio ladder on Android mirroring the desktop's, floor included.
+5. Finished the two agents' half-done work: `hasAudioTrack`, the Media3 audio
+   wiring, and the cancellation-path cleanup.
+
+**Gotchas learned this session:**
+- **A killed agent leaves compiling-but-unreachable code.** The audio ladder was
+  complete and correct and *nothing called it* — `TransformerEngine.compress`
+  took an `audio` parameter that no caller ever set. It built green. Always
+  trace a new parameter to a real call site before believing a feature landed.
+- **`catch (e: Exception)` swallows `CancellationException` in Kotlin.** The new
+  cancel path looked right and would have let the batch continue to the next
+  file after the user pressed Cancel. Catch it separately and rethrow.
+- **Cleanup on a cancellation path needs `NonCancellable`.** A suspend call
+  inside an already-cancelled coroutine throws immediately, so the
+  `OutputNaming.deleteOutput` that removes the orphaned `IS_PENDING` MediaStore
+  row would never have run.
+- **`Transformer.cancel()` must run on the thread the Transformer was started
+  on** (`verifyApplicationThread()`), but `invokeOnCancellation` runs on
+  whichever thread called `Job.cancel()` — so `cancel()` bounces to the main
+  looper first.
+- **Verify a third-party API before using it, not after.** `AudioEncoderSettings`,
+  its `Builder.setBitrate`, `DefaultEncoderFactory.Builder.setRequestedAudioEncoderSettings`
+  and `Transformer.Builder.setAudioMimeType` were all confirmed by `javap` on the
+  Media3 1.5.1 AAR. The half-finished agent had imported `Format` from
+  `media3.transformer`, where it does not exist.
+- **Coil needs `VideoFrameDecoder.Factory()` for a video URI**; without it every
+  thumbnail is a silent empty grey square.
+- **A composable cannot share a name with the Application class** — `CompVdoApp`
+  collided and produced an "overload resolution ambiguity" that reads nothing
+  like a name clash.
+
+### Partially done
+- Nothing half-built.
+
+### Blocked
+- **3.6** on **M3** — device trial. Everything is code-verified only; the
+  hardware checklist in `qa-checklist.md` has grown accordingly.
+
+### Next step (exact)
+Wait for the user's device validation. If asked to continue unprompted, take
+3.15 first (there is still no Android test source set at all), then 3.16
+(R9.2 batch resume, absent on Android), then 3.13.
+
+### Assumptions
+- Preview is a hand-off to an external player rather than an in-app viewer.
+- Android's audio ladder mirrors the desktop's rules rather than sharing code,
+  per the architecture decision that Android re-implements `requirements.md`.
+
+## Previous state — 2026-09-20 (session 6) — Android data-loss fixed; icon, scanner, log and desktop audio landed
 
 - **Current phase:** 3 — Android. The blocking defects are closed; UX work remains.
 - **Last completed task:** 2c.3 desktop audio tests
