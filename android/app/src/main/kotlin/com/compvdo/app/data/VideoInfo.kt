@@ -15,6 +15,14 @@ data class VideoInfo(
     val height: Int,
     val mimeType: String,
     val dateModified: Long,    // epoch seconds
+    /**
+     * MediaStore DATE_TAKEN in milliseconds, 0 when unknown.
+     *
+     * This is what a gallery sorts an album by. Carried so a compressed copy
+     * can be given the same one and land beside its original instead of
+     * jumping to the top of the album.
+     */
+    val dateTaken: Long = 0L,
     val bitrate: Long,         // bits/s, estimated from size*8/duration if not available
     val relativePath: String,  // e.g. "DCIM/Camera"
 

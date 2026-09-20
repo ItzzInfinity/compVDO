@@ -61,10 +61,12 @@ class EncodeWorker(QThread):
 
     def __init__(self, specs: list[JobSpec], caps: Caps, *, resume_in: Path | None,
                  purge: bool = False, cores: int | None = None,
+                 preset: str | None = None,
                  parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._specs, self._caps = specs, caps
         self._resume_in, self._purge, self._cores = resume_in, purge, cores
+        self._preset = preset
         self.cancel_token = CancelToken()
 
     def cancel(self) -> None:
@@ -82,6 +84,7 @@ class EncodeWorker(QThread):
                 resume_in=self._resume_in,
                 purge=self._purge,
                 cores=self._cores,
+                preset=self._preset,
             )
         except Exception as e:                # noqa: BLE001
             self.failed.emit(str(e))

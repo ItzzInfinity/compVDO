@@ -12,6 +12,7 @@ from pathlib import Path
 
 from . import __version__
 from .cpu import RESERVED_CORES, describe as describe_cores
+from .plan import PRESETS, PRESET_DEFAULT
 from .batch import plan_jobs, prepare, run_batch
 from .encode import CancelToken
 from .model import JobResult, JobSpec, MODES
@@ -237,7 +238,7 @@ def cmd_compress(args) -> int:
     results = run_batch(specs, caps, on_progress=rep.progress, on_done=rep.done,
                         cancel=cancel, resume_in=folder if args.resume else None,
                         purge=args.purge, deep_verify=not args.fast_verify,
-                        cores=args.cores)
+                        cores=args.cores, preset=args.preset)
     return summarise(results)
 
 
@@ -264,7 +265,7 @@ def cmd_preview(args) -> int:
                    audio=getattr(args, "audio", AUDIO_DEFAULT))
     from .encode import run as encode_run
     rep = Reporter(quiet=args.quiet)
-    outcome = encode_run(spec, caps, cores=args.cores,
+    outcome = encode_run(spec, caps, cores=args.cores, preset=args.preset,
                          on_progress=lambda f, s: rep.progress(1, 1, spec, f, s))
     print()
     if not outcome.ok:
@@ -356,6 +357,9 @@ def build_parser() -> argparse.ArgumentParser:
                         help="re-encode audio to AAC at this bitrate "
                              "(default: keep, which stream-copies it). "
                              "Never goes below 128k.")
+        sp.add_argument("--preset", choices=PRESETS, default=PRESET_DEFAULT,
+                        help=f"x265 speed/size trade-off (default: {PRESET_DEFAULT}). "
+                             f"'fast' measured ~1.4x quicker at the same size")
         sp.add_argument("--cores", type=int, metavar="N",
                         help=f"cores to use (default: all but "
                              f"{RESERVED_CORES}, so the machine stays usable)")

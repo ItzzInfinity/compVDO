@@ -79,6 +79,35 @@ What this trial taught us:
 - [ ] Non-ASCII filenames and paths over 260 chars
 - [ ] Delete goes to the Recycle Bin
 
+## Speed measurements — 2026-09-20
+
+20 s cut of `video_20260705_062317.mp4` (1080p60 HEVC, 26 MB), AMD Lucienne,
+10 of 12 cores. Same `--mode medium` throughout.
+
+| invocation | time | output | vs source |
+|---|---|---|---|
+| default (`preset medium`) | 69.3 s | 14 MB | 56 % |
+| `--preset fast` | **44.4 s** | 13 MB | 53 % |
+| `--hw auto` (VAAPI) | **11.9 s** | 12 MB | 49 % |
+
+Two conclusions, both counter-intuitive:
+
+1. **`fast` is not a trade-off here.** 1.6x quicker *and* a slightly smaller
+   file than `medium`. The preset ladder's size advantage does not show on
+   already-HEVC phone footage.
+2. **Hardware encoding was badly broken and is now the best option.** The
+   VAAPI branch fed the *software CRF ladder* straight into `-qp`, and the two
+   scales are not interchangeable. Measured on the same clip:
+   `qp=20 -> 219 %`, `qp=24 -> 143 %`, `qp=28 -> 86 %`, `qp=32 -> 47 %`.
+   So `--hw auto --mode high` produced a file **twice the size of its source**.
+   Hardware now maps to `crf + 8`, and `--hw auto` is 5.8x faster than the
+   default while producing a *smaller* file.
+
+- [ ] Confirm on a longer clip that `fast` holds its size advantage before
+      making it the default — this is one 20 s sample.
+- [ ] Judge `--hw auto` output quality by eye; it is a fixed-function encoder
+      and the size figure alone does not say it looks as good.
+
 ## Android device trial — 2026-09-20 (M3)
 
 First run on real hardware, 303 videos / 34.54 GB across 16 folders.
@@ -135,6 +164,10 @@ First run on real hardware, 303 videos / 34.54 GB across 16 folders.
 - [ ] The Log tab's Save button writes `Download/compvdo-log-<timestamp>.txt`
 - [ ] List rows are all the same height and nothing wraps
 - [ ] Portrait clips now report portrait dimensions and show a portrait thumbnail
+- [ ] A compressed file sits **next to its original** in the gallery album,
+      not at the top (DATE_TAKEN/DATE_MODIFIED are now inherited)
+- [ ] Scrolling the album grid is smoother, and thumbnails survive a restart
+      (there is a disk cache now)
 
 ## Android code validation — 2026-09-20
 

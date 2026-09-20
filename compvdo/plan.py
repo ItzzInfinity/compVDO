@@ -28,8 +28,18 @@ _LADDER = {
     "h264": {"low": 26, "medium": 22, "high": 18},
 }
 
-# x265 preset: slower than 'medium' buys real bitrate at a real time cost.
-_PRESET = "medium"
+# x265 presets, slowest-highest-quality last.
+PRESETS = ("ultrafast", "superfast", "veryfast", "faster", "fast",
+           "medium", "slow", "slower")
+PRESET_DEFAULT = "medium"
+
+# Hardware encoders take a fixed quantiser, NOT a CRF, and the two scales are
+# not interchangeable. Feeding the software ladder straight to VAAPI is how a
+# "high quality" run produced a file 219% the size of its source: measured on a
+# 20s 1080p60 HEVC clip, qp=20 gave 219%, qp=24 gave 143%, qp=28 gave 86% and
+# qp=32 gave 47%. Roughly crf+8 lands a hardware encode near the software one.
+_HW_QP_OFFSET = 8
+_HW_QP_MAX = 42
 
 # Audio codecs that are legal in each target container (R6.2).
 _AUDIO_OK = {
@@ -95,6 +105,7 @@ class Plan:
     audio_action: str        # 'copy' or 'aac'
     notes: tuple[str, ...]   # user-facing warnings, e.g. the archive growth one
     threads: int = 0         # cores this job is allowed (0 = unset)
+    preset: str = PRESET_DEFAULT
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +154,17 @@ def resolve_crf(encoder: str, mode: str, override: int | None) -> int | None:
     if override is not None:
         return override
     return _LADDER[_family(encoder)][mode]
+
+
+def is_hardware(encoder: str) -> bool:
+    return encoder.endswith(("_vaapi", "_nvenc", "_qsv", "_amf", "_videotoolbox"))
+
+
+def hardware_qp(crf: int | None) -> int:
+    """Translate a software CRF onto a hardware quantiser (see _HW_QP_OFFSET)."""
+    if crf is None:
+        return _HW_QP_OFFSET
+    return min(_HW_QP_MAX, crf + _HW_QP_OFFSET)
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +227,8 @@ def is_compressed_output(path: Path) -> bool:
 # The build
 # ---------------------------------------------------------------------------
 
-def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None) -> Plan:
+def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None,
+          preset: str | None = None) -> Plan:
     """The whole ffmpeg command line for one job. Pure — touches no disk.
 
     `cores` is the thread budget; None means "work it out from the machine",
@@ -213,6 +236,9 @@ def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None) -> Pla
     """
     src, mode = spec.src, spec.mode
     threads = cpu_budget(cores)
+    preset = preset or PRESET_DEFAULT
+    if preset not in PRESETS:
+        raise PlanError(f"unknown preset {preset!r}; expected one of {', '.join(PRESETS)}")
     encoder = choose_encoder(caps, mode, spec.hw)
     crf = resolve_crf(encoder, mode, spec.crf)
     target_ext = tmp.suffix.lstrip(".").lower()
@@ -247,20 +273,21 @@ def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None) -> Pla
             "lossily compressed (R3.2)"
         )
     elif encoder in ("libx265", "libx264"):
-        argv += ["-preset", _PRESET, "-crf", str(crf)]
+        argv += ["-preset", preset, "-crf", str(crf)]
         argv += ["-threads", str(threads)]          # output-side decoder/encoder
         if encoder == "libx265":
             argv += ["-tag:v", "hvc1"] if target_ext == "mp4" else []
             argv += ["-x265-params", f"log-level=error:pools={threads}"]
     elif encoder.endswith("_vaapi"):
-        # VAAPI has no CRF; -qp is the closest constant-quality control.
-        argv += ["-qp", str(crf)]
+        # VAAPI has no CRF; -qp is the closest constant-quality control, on a
+        # different scale — see _HW_QP_OFFSET.
+        argv += ["-qp", str(hardware_qp(crf))]
     elif encoder.endswith("_nvenc"):
-        argv += ["-preset", "p5", "-rc", "vbr", "-cq", str(crf), "-b:v", "0"]
+        argv += ["-preset", "p5", "-rc", "vbr", "-cq", str(hardware_qp(crf)), "-b:v", "0"]
         if target_ext == "mp4":
             argv += ["-tag:v", "hvc1"]
     elif encoder.endswith(("_qsv", "_amf", "_videotoolbox")):
-        argv += ["-global_quality", str(crf)]
+        argv += ["-global_quality", str(hardware_qp(crf))]
 
     # -- audio (R6) -------------------------------------------------------
     # Two independent reasons to re-encode: the user asked (R6.3), or the codec
@@ -302,7 +329,7 @@ def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None) -> Pla
     argv += ["-progress", "pipe:1", "-nostats", "-loglevel", "error", str(tmp)]
 
     return Plan(argv=argv, encoder=encoder, crf=crf, audio_action=audio_action,
-                notes=tuple(notes), threads=threads)
+                notes=tuple(notes), threads=threads, preset=preset)
 
 
 # ---------------------------------------------------------------------------

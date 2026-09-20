@@ -85,3 +85,38 @@ def test_ffv1_archive_also_gets_a_thread_cap(caps):
 def test_default_plan_uses_the_budget_not_every_core(monkeypatch, caps):
     monkeypatch.setattr(cpu, "total_cores", lambda: 8)
     assert _plan(caps, None).threads == 6
+
+
+# --- speed controls --------------------------------------------------------
+
+def test_preset_reaches_the_encoder(caps):
+    from compvdo.plan import build
+    i = make_info()
+    spec = JobSpec(src=i, dst=i.path.with_name("clip_compressed.mp4"))
+    argv = build(spec, caps, Path("/videos/.compvdo-tmp-1.mp4"), None, "fast").argv
+    assert argv[argv.index("-preset") + 1] == "fast"
+
+
+def test_unknown_preset_is_refused(caps):
+    from compvdo.plan import PlanError, build
+    i = make_info()
+    spec = JobSpec(src=i, dst=i.path.with_name("clip_compressed.mp4"))
+    with pytest.raises(PlanError, match="unknown preset"):
+        build(spec, caps, Path("/videos/.compvdo-tmp-1.mp4"), None, "blisteringly-fast")
+
+
+def test_hardware_gets_its_own_quantiser_not_the_crf(caps):
+    """Measured: feeding the CRF ladder to VAAPI gave a file 219% of its source."""
+    from compvdo.plan import build, hardware_qp
+    i = make_info()
+    spec = JobSpec(src=i, dst=i.path.with_name("clip_compressed.mp4"), hw="auto")
+    p = build(spec, caps, Path("/videos/.compvdo-tmp-1.mp4"))
+    assert p.encoder.endswith("_vaapi")
+    qp = int(p.argv[p.argv.index("-qp") + 1])
+    assert qp == hardware_qp(p.crf) and qp > p.crf
+
+
+def test_hardware_quantiser_is_capped():
+    from compvdo.plan import hardware_qp
+    assert hardware_qp(40) <= 42
+    assert hardware_qp(None) > 0

@@ -250,7 +250,21 @@ class MainWindow(QMainWindow):
         self.archive_warning.setVisible(False)
         box.addWidget(self.archive_warning)
 
-        self.hw = QCheckBox("Use hardware encoding (faster, larger files)")
+        box.addWidget(QLabel("Speed"))
+        self.preset = QComboBox()
+        self.preset.addItems([
+            "veryfast — quickest",
+            "fast — recommended",
+            "medium — slowest",
+        ])
+        self.preset.setCurrentIndex(
+            {"veryfast": 0, "fast": 1, "medium": 2}.get(
+                self._settings["defaults"].get("preset", "medium"), 2)
+        )
+        self.preset.currentIndexChanged.connect(self._persist)
+        box.addWidget(self.preset)
+
+        self.hw = QCheckBox("Use hardware encoding (much faster)")
         self.hw.setChecked(self._settings["defaults"].get("hw") == "auto")
         self.hw.stateChanged.connect(self._persist)
         box.addWidget(self.hw)
@@ -370,7 +384,8 @@ class MainWindow(QMainWindow):
             return
         hw = "hardware encoding available" if self._caps.vaapi_device else "software encoding"
         self.caps_label.setText(f"ffmpeg {self._caps.ffmpeg_version} · {hw} · "
-                                f"{describe_cores(self._cores())}")
+                                f"preset={self.current_preset()}, "
+                        f"{describe_cores(self._cores())}")
 
     def _log(self, tag: str, text: str) -> None:
         """The single place anything reaches the console (dev_guide.md §11).
@@ -412,6 +427,7 @@ class MainWindow(QMainWindow):
     def _persist(self) -> None:
         self._settings["defaults"]["mode"] = self.current_mode()
         self._settings["defaults"]["hw"] = "auto" if self.hw.isChecked() else "off"
+        self._settings["defaults"]["preset"] = self.current_preset()
         self._settings["defaults"]["audio"] = self.current_audio()
         self._settings["defaults"]["delete_original"] = self.delete_original.isChecked()
         self._settings["ui"]["last_folder"] = str(self._folder) if self._folder else None
@@ -436,6 +452,9 @@ class MainWindow(QMainWindow):
         self._persist()
         if self._entries:
             self._refill_table()
+
+    def current_preset(self) -> str:
+        return ("veryfast", "fast", "medium")[self.preset.currentIndex()]
 
     def current_theme(self) -> str:
         return ("system", "light", "dark")[self.theme.currentIndex()]
@@ -664,7 +683,8 @@ class MainWindow(QMainWindow):
             return
 
         self._encode_worker = EncodeWorker(specs, self._caps, resume_in=self._folder,
-                                           cores=self._cores())
+                                           cores=self._cores(),
+                                           preset=self.current_preset())
         self._encode_worker.file_progress.connect(self._on_file_progress)
         self._encode_worker.file_done.connect(self._on_file_done)
         self._encode_worker.all_done.connect(self._on_all_done)

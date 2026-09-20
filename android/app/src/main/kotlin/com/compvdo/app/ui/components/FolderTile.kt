@@ -18,6 +18,9 @@ import coil.request.ImageRequest
 import com.compvdo.app.data.VideoFolder
 import com.compvdo.app.util.FileSize
 
+/** Decode target for grid tiles, in pixels — a third of a phone's width. */
+private const val TILE_PX = 384
+
 /**
  * One album tile — roadmap 3b.8.
  *
@@ -46,9 +49,10 @@ fun FolderTile(
             AsyncImage(
                 model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                     .data(folder.representative.uri)
-                    // coil-video decodes a frame; without this a video URI just
-                    // fails to decode and every tile is an empty grey square.
-                    .decoderFactory(coil.decode.VideoFrameDecoder.Factory())
+                    // The decoder is registered globally in CompVdoApp. The
+                    // size matters: without it Coil decodes the full frame,
+                    // which on a 4K source is a large bitmap per tile.
+                    .size(TILE_PX)
                     .crossfade(true)
                     .build(),
                 contentDescription = folder.displayName,
@@ -116,7 +120,7 @@ fun VideoTile(
             AsyncImage(
                 model = ImageRequest.Builder(androidx.compose.ui.platform.LocalContext.current)
                     .data(videoUri)
-                    .decoderFactory(coil.decode.VideoFrameDecoder.Factory())
+                    .size(TILE_PX)
                     .crossfade(true)
                     .build(),
                 contentDescription = title,

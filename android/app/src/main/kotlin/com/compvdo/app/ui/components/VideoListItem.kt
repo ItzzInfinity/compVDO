@@ -16,7 +16,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import com.compvdo.app.data.VideoInfo
 import com.compvdo.app.util.FileSize
@@ -45,6 +44,9 @@ import com.compvdo.app.util.VideoPlayback
  *
  * The **whole card** toggles selection; previously only the checkbox did.
  */
+/** Decode target for list thumbnails, in pixels. Comfortably over 64dp x 4. */
+private const val THUMB_PX = 288
+
 @Composable
 fun VideoListItem(
     video: VideoInfo,
@@ -90,7 +92,9 @@ fun VideoListItem(
                 AsyncImage(
                     model = ImageRequest.Builder(context)
                         .data(video.uri)
-                        .decoderFactory(VideoFrameDecoder.Factory())
+                        // Without a size, Coil decodes the full frame — a 4K
+                        // still for a 64dp box.
+                        .size(THUMB_PX)
                         .crossfade(true)
                         .build(),
                     contentDescription = null,

@@ -87,7 +87,8 @@ def run_batch(specs: Sequence[JobSpec], caps: Caps, *,
               resume_in: Path | None = None,
               purge: bool = False,
               deep_verify: bool = True,
-              cores: int | None = None) -> list[JobResult]:
+              cores: int | None = None,
+              preset: str | None = None) -> list[JobResult]:
     """Encode each spec in turn. Returns one JobResult per spec, in order."""
     total = len(specs)
     state = RunState.load(resume_in, specs[0].mode if specs else "medium") if resume_in else None
@@ -111,7 +112,7 @@ def run_batch(specs: Sequence[JobSpec], caps: Caps, *,
             continue
 
         result = _run_one(spec, caps, idx, total, on_progress, cancel, purge,
-                          deep_verify, cores)
+                          deep_verify, cores, preset)
         results.append(result)
 
         if state is not None:
@@ -134,11 +135,12 @@ def run_batch(specs: Sequence[JobSpec], caps: Caps, *,
 def _run_one(spec: JobSpec, caps: Caps, idx: int, total: int,
              on_progress: ProgressFn | None, cancel: CancelToken | None,
              purge: bool, deep_verify: bool,
-             cores: int | None = None) -> JobResult:
+             cores: int | None = None,
+             preset: str | None = None) -> JobResult:
     """One file, with every failure turned into a JobResult (R9.3)."""
     try:
         outcome = encode_run(
-            spec, caps, cancel=cancel, cores=cores,
+            spec, caps, cancel=cancel, cores=cores, preset=preset,
             on_progress=(lambda f, s: on_progress(idx, total, spec, f, s)) if on_progress else None,
         )
     except PlanError as e:

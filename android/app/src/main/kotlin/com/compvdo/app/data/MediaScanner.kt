@@ -166,6 +166,7 @@ object MediaScanner {
             MediaStore.Files.FileColumns.SIZE,
             MediaStore.Files.FileColumns.MIME_TYPE,
             MediaStore.Files.FileColumns.DATE_MODIFIED,
+            MediaStore.Video.Media.DATE_TAKEN,
             MediaStore.Files.FileColumns.MEDIA_TYPE,
             @Suppress("DEPRECATION")
             MediaStore.Files.FileColumns.DATA,
@@ -249,6 +250,7 @@ object MediaScanner {
             val sizeCol = c.getColumnIndex(MediaStore.Files.FileColumns.SIZE)
             val mimeCol = c.getColumnIndex(MediaStore.Files.FileColumns.MIME_TYPE)
             val dateCol = c.getColumnIndex(MediaStore.Files.FileColumns.DATE_MODIFIED)
+            val takenCol = c.getColumnIndex(MediaStore.Video.Media.DATE_TAKEN)
             val typeCol = c.getColumnIndex(MediaStore.Files.FileColumns.MEDIA_TYPE)
             @Suppress("DEPRECATION")
             val dataCol = c.getColumnIndex(MediaStore.Files.FileColumns.DATA)
@@ -322,6 +324,10 @@ object MediaScanner {
                     height = height,
                     mimeType = mime,
                     dateModified = dateMod,
+                    // Fall back to the modified time (seconds -> ms) so a row
+                    // without DATE_TAKEN still gets a sensible ordering value.
+                    dateTaken = if (takenCol >= 0 && !c.isNull(takenCol)) c.getLong(takenCol)
+                                else dateMod * 1000L,
                     bitrate = bitrate,
                     relativePath = relPath,
                     bucketId = bucketId,

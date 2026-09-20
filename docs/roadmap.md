@@ -73,6 +73,10 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 3b.11 Fix the list-view layout found in the 16:11 screenshots — done 2026-09-20; resolution no longer wraps (one non-wrapping line, rung labels), thumbnails are 16:9 Fit so orientation reads, and the scanner reports display rather than coded dimensions
 - [x] 3b.12 Use the supplied `iconCompVDO.png` as the launcher icon — done 2026-09-20; glyph extracted by flood-filling the page background inwards (a colour key would also have erased the document's near-white interior), rendered into all five density buckets at 70dp on the 108dp canvas, plus a derived monochrome layer. The wordmark and tagline were dropped — see the note in manual-task.md
 - [x] 3b.13 Light/dark setting on both platforms (R12.4) — done 2026-09-20; Android gets a Follow system / Light / Dark radio in Settings, desktop gets an Appearance combo that restyles the running app rather than needing a restart
+- [x] 2c.4 Expose the x265 preset (`--preset`, GUI combo) — done 2026-09-20; measured `fast` at 1.6x the speed of `medium` with a *smaller* file on real phone footage
+- [x] 2c.5 Fix the hardware quality ladder — done 2026-09-20; VAAPI was fed the software CRF directly, so `--hw auto --mode high` produced a file **219% of its source**. Hardware now maps to crf+8; `--hw auto` is 5.8x faster than the default and smaller
+- [x] 3b.14 Inherit DATE_TAKEN/DATE_MODIFIED on Android output — done 2026-09-20; without them the provider stamps "now" and every compressed file jumps to the top of the album instead of sitting beside its original
+- [x] 3b.15 Thumbnail performance — done 2026-09-20; a shared Coil loader in `CompVdoApp` with a 96 MB disk cache and a 20% memory cache, plus bounded decode sizes so a 4K frame is not decoded for a 64dp box
 - [M] 3.6b Re-trial on device after the 2026-09-20 fixes — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
 
 ### Phase 3 follow-up — from the 2026-09-20 code validation

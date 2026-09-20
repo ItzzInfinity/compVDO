@@ -97,6 +97,18 @@ object OutputNaming {
             put(MediaStore.Video.Media.DISPLAY_NAME, name)
             put(MediaStore.Video.Media.MIME_TYPE, "video/mp4")
             put(MediaStore.Video.Media.RELATIVE_PATH, relativePath)
+
+            // Inherit the original's dates so the copy sits NEXT TO it in the
+            // gallery. Without these the provider stamps "now", and every
+            // compressed file jumps to the top of the album, far away from the
+            // video it came from. DATE_TAKEN is what galleries sort on;
+            // DATE_MODIFIED is the fallback for the ones that do not.
+            if (source.dateTaken > 0) {
+                put(MediaStore.Video.Media.DATE_TAKEN, source.dateTaken)
+            }
+            if (source.dateModified > 0) {
+                put(MediaStore.Video.Media.DATE_MODIFIED, source.dateModified)
+            }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 put(MediaStore.Video.Media.IS_PENDING, 1)
             }
