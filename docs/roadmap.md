@@ -40,17 +40,18 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 1.13 `cli.py` — `scan` / `compress` / `preview` / `caps` subcommands, result table (R7) — done 2026-09-20; 6 subcommands, live-tested end to end on a mixed mp4/mkv/avi/silent/corrupt folder
 - [x] 1.14 `settings.py` — load/save with unknown-key preservation and `version` migration — done 2026-09-20; caps cache cuts start-up from 0.10s to 0.00s; corrupt config degrades to defaults
 - [x] 1.15 `tests/test_e2e.py` — synthetic clip via `ffmpeg lavfi`, real encode, verify, resume — done 2026-09-20; 72 tests pass in 31s covering rotation, audio, cancel, resume, delete gating, bit-exactness
+- [x] 1.18 `report.py` + `compvdo report` — full ffprobe metadata + per-file summary to one markdown (requested 2026-09-20) — done 2026-09-20; generated a 32k-char report for 4 real phone clips, every ffprobe field included verbatim
 - [M] 1.16 Trial on a real phone clip; record actual ratios in `qa-checklist.md` — blocked on M1 (no phone clips supplied yet); synthetic coverage is complete
 - [x] 1.17 `README.md` — install, usage, the lossless explanation — done 2026-09-20; leads with the measured 5.0MB->10.2MB archive result rather than burying it
 
 ## Phase 2 — Linux GUI (PySide6)
-- [ ] 2.1 `gui/worker.py` — QThread bridge over `encode.py`, signals for progress/done/error
-- [ ] 2.2 `gui/main_window.py` — folder picker, sortable file table with the suggestion column
-- [ ] 2.3 Queue panel: per-file + overall progress, working cancel (R12.1, R12.2)
-- [ ] 2.4 Settings panel: mode, hw, delete-original, container; persisted via `settings.py`
-- [ ] 2.5 `gui/theme.qss` — Material 3 flavour, light/dark following the system (R12.4)
-- [ ] 2.6 Preview: 10 s sample encode + side-by-side playback (R11)
-- [ ] 2.7 `archive` mode warning dialog (R3.2) and `GREW` result badge (R7.2)
+- [x] 2.1 `gui/worker.py` — QThread bridge over `encode.py`, signals for progress/done/error — done 2026-09-20; ScanWorker/EncodeWorker/PreviewWorker QThreads, cancel via CancelToken not thread termination
+- [x] 2.2 `gui/main_window.py` — folder picker, sortable file table with the suggestion column — done 2026-09-20; sortable table with NumericItem so '9.5 MB' sorts before '10.2 MB'; verified against the 4 real clips
+- [x] 2.3 Queue panel: per-file + overall progress, working cancel (R12.1, R12.2) — done 2026-09-20; per-file + overall bars, overall = (finished + fraction)/total so it tracks reality
+- [x] 2.4 Settings panel: mode, hw, delete-original, container; persisted via `settings.py` — done 2026-09-20; mode/hw/delete persisted via settings.py; restored state now drives the widgets at startup
+- [x] 2.5 `gui/theme.qss` — Material 3 flavour, light/dark following the system (R12.4) — done 2026-09-20; token-substituted QSS, light+dark captured to reports/shots/; fixed label boxes and disabled-Danger styling
+- [x] 2.6 Preview: 10 s sample encode + side-by-side playback (R11) — done 2026-09-20; PreviewWorker cuts then encodes a 10s sample into a temp dir, never beside the original
+- [x] 2.7 `archive` mode warning dialog (R3.2) and `GREW` result badge (R7.2) — done 2026-09-20; archive dialog + banner, GREW shown as 'GREW — kept original' in the status column
 - [ ] 2.8 Trial pass on the GUI against `qa-checklist.md`
 
 ## Phase 3 — Windows

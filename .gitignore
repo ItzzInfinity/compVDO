@@ -12,3 +12,5 @@ ffmpeg_bin/
 samples/
 
 .obsidian
+testVideos/testVideos/
+reports/

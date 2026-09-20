@@ -147,7 +147,10 @@ def cmd_scan(args) -> int:
     print(f"\n{len(worth)} of {len(entries)} look worth compressing at "
           f"mode={args.mode}; estimated saving "
           f"{human(sum(e.est_saving for e in worth))}.")
-    print("These are ESTIMATES from bits-per-pixel, not a promise (R10.4).")
+    print("These are ROUGH estimates from bits-per-pixel. Measured on real phone\n"
+          "footage, three clips at an identical 0.086 bits/pixel came out at 77%,\n"
+          "64% and 29% of their original size — the arithmetic cannot see how busy\n"
+          "the picture is. Use `compvdo preview <file>` for a real number.")
     for p, why in skipped:
         print(f"  skipped {p.name}: {why}")
     return EXIT_OK
@@ -263,6 +266,29 @@ def cmd_preview(args) -> int:
     return EXIT_OK
 
 
+def cmd_report(args) -> int:
+    """Full metadata for a file or folder, as one markdown document."""
+    from .report import build_markdown
+    from .scan import find_videos
+
+    caps = cached_caps()
+    root = Path(args.path)
+    paths = find_videos(root, recursive=not args.no_recursive,
+                        include_compressed=args.include_compressed)
+    if not paths:
+        print("No videos found.")
+        return EXIT_OK
+
+    print(f"Reading metadata from {len(paths)} file(s)...")
+    text = build_markdown(paths, caps, mode=args.mode,
+                          title=args.title or f"Video metadata report — {root.name or root}")
+    out = Path(args.output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(text, encoding="utf-8")
+    print(f"Wrote {out}  ({len(text):,} characters)")
+    return EXIT_OK
+
+
 def cmd_verify(args) -> int:
     caps = cached_caps()
     src = probe_info(Path(args.original), caps)
@@ -344,6 +370,16 @@ def build_parser() -> argparse.ArgumentParser:
     k.add_argument("original")
     k.add_argument("output")
     k.set_defaults(func=cmd_verify)
+
+    r = sub.add_parser("report", help="dump full metadata for a file or folder to markdown")
+    r.add_argument("path")
+    r.add_argument("-o", "--output", default="report.md")
+    r.add_argument("--title")
+    r.add_argument("-m", "--mode", choices=MODES, default="medium",
+                   help="the mode the savings estimates assume")
+    r.add_argument("--no-recursive", action="store_true")
+    r.add_argument("--include-compressed", action="store_true")
+    r.set_defaults(func=cmd_report)
 
     a = sub.add_parser("caps", help="show what this machine's ffmpeg can do")
     a.add_argument("--refresh", action="store_true")

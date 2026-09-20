@@ -1,0 +1,176 @@
+/* Material-3-flavoured stylesheet. Colour tokens are substituted at load time
+   by app.py from the palette that matches the system light/dark preference,
+   so this file holds shape and spacing, not colours. */
+
+QWidget {
+    background: @surface;
+    color: @on_surface;
+    font-size: 10pt;
+}
+
+/* QWidget's background above also applies to QLabel, which paints a visible
+   box wherever a label sits on a card. Labels carry no background of their
+   own; only the ones that are deliberately badges do. */
+QLabel { background: transparent; }
+
+QLabel#Heading {
+    font-size: 15pt;
+    font-weight: 600;
+    padding: 2px 0 6px 0;
+}
+
+QLabel#Subtle { color: @on_surface_variant; }
+
+QLabel#Warning {
+    color: @on_warning;
+    background: @warning;
+    border-radius: 8px;
+    padding: 8px 12px;
+}
+
+/* --- cards --------------------------------------------------------- */
+
+QFrame#Card {
+    background: @surface_container;
+    border: 1px solid @outline_variant;
+    border-radius: 12px;
+}
+
+/* --- buttons: M3 filled / tonal / text ------------------------------ */
+
+QPushButton {
+    background: @surface_container_high;
+    color: @on_surface;
+    border: none;
+    border-radius: 20px;
+    padding: 9px 20px;
+    font-weight: 500;
+}
+QPushButton:hover   { background: @hover; }
+QPushButton:pressed { background: @pressed; }
+QPushButton:disabled { color: @disabled_text; background: @disabled_bg; }
+
+QPushButton#Filled {
+    background: @primary;
+    color: @on_primary;
+}
+QPushButton#Filled:hover    { background: @primary_hover; }
+QPushButton#Filled:pressed  { background: @primary_pressed; }
+QPushButton#Filled:disabled { background: @disabled_bg; color: @disabled_text; }
+
+QPushButton#Danger { background: @error; color: @on_error; }
+QPushButton#Danger:hover { background: @error_hover; }
+QPushButton#Danger:disabled { background: @disabled_bg; color: @disabled_text; }
+
+QPushButton#Text {
+    background: transparent;
+    color: @primary;
+    padding: 8px 12px;
+}
+QPushButton#Text:hover { background: @hover; }
+
+/* --- inputs --------------------------------------------------------- */
+
+QComboBox, QSpinBox, QLineEdit {
+    background: @surface_container_high;
+    border: 1px solid @outline_variant;
+    border-radius: 8px;
+    padding: 7px 10px;
+    min-height: 18px;
+}
+QComboBox:focus, QSpinBox:focus, QLineEdit:focus { border: 1px solid @primary; }
+QComboBox::drop-down { border: none; width: 22px; }
+QComboBox QAbstractItemView {
+    background: @surface_container_high;
+    border: 1px solid @outline_variant;
+    border-radius: 8px;
+    selection-background-color: @primary;
+    selection-color: @on_primary;
+    outline: none;
+}
+
+QCheckBox { spacing: 8px; padding: 3px; }
+QCheckBox::indicator {
+    width: 17px; height: 17px;
+    border: 2px solid @outline;
+    border-radius: 4px;
+    background: transparent;
+}
+QCheckBox::indicator:checked {
+    background: @primary;
+    border: 2px solid @primary;
+    image: url(:/qt-project.org/styles/commonstyle/images/standardbutton-apply-16.png);
+}
+QCheckBox::indicator:disabled { border: 2px solid @disabled_text; }
+
+/* --- table ---------------------------------------------------------- */
+
+QTableWidget {
+    background: @surface_container;
+    alternate-background-color: @surface_container_alt;
+    border: 1px solid @outline_variant;
+    border-radius: 12px;
+    gridline-color: transparent;
+    selection-background-color: @select;
+    selection-color: @on_surface;
+    outline: none;
+}
+QTableWidget::item { padding: 7px 8px; border: none; }
+QTableWidget::item:selected { background: @select; color: @on_surface; }
+
+QHeaderView::section {
+    background: @surface_container;
+    color: @on_surface_variant;
+    border: none;
+    border-bottom: 1px solid @outline_variant;
+    padding: 9px 8px;
+    font-weight: 600;
+}
+QHeaderView::section:hover { color: @primary; }
+QTableCornerButton::section { background: @surface_container; border: none; }
+
+/* --- progress ------------------------------------------------------- */
+
+QProgressBar {
+    background: @surface_container_high;
+    border: none;
+    border-radius: 4px;
+    height: 8px;
+    text-align: center;
+    color: transparent;
+}
+QProgressBar::chunk { background: @primary; border-radius: 4px; }
+
+QProgressBar#Overall { height: 10px; }
+QProgressBar#Overall::chunk { background: @primary; border-radius: 5px; }
+
+/* --- misc ----------------------------------------------------------- */
+
+QPlainTextEdit {
+    background: @surface_container;
+    border: 1px solid @outline_variant;
+    border-radius: 10px;
+    padding: 8px;
+    font-family: monospace;
+    font-size: 9pt;
+}
+
+QScrollBar:vertical { background: transparent; width: 10px; margin: 4px 2px; }
+QScrollBar::handle:vertical { background: @outline; border-radius: 4px; min-height: 28px; }
+QScrollBar::handle:vertical:hover { background: @on_surface_variant; }
+QScrollBar::add-line, QScrollBar::sub-line { height: 0; width: 0; }
+QScrollBar::add-page, QScrollBar::sub-page { background: transparent; }
+QScrollBar:horizontal { background: transparent; height: 10px; margin: 2px 4px; }
+QScrollBar::handle:horizontal { background: @outline; border-radius: 4px; min-width: 28px; }
+
+QToolTip {
+    background: @surface_container_high;
+    color: @on_surface;
+    border: 1px solid @outline_variant;
+    border-radius: 6px;
+    padding: 5px 8px;
+}
+
+QSplitter::handle { background: transparent; }
+QStatusBar { background: @surface; color: @on_surface_variant; }
+QStatusBar::item { border: none; }

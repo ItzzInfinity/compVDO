@@ -252,3 +252,21 @@ def test_existing_output_only_checks_the_container_being_produced():
     assert existing_output(Path("/v/a.mp4"), "mp4", exists=ex) is not None
     # An archive run targets .mkv, so the existing .mp4 must not block it.
     assert existing_output(Path("/v/a.mp4"), "mkv", exists=ex) is None
+
+
+def test_estimate_range_brackets_the_point_estimate():
+    from compvdo.plan import estimate, estimate_range
+    i = make_info()
+    low, high = estimate_range(i)
+    assert low < estimate(i)[1] < high
+
+
+def test_estimate_range_is_zero_when_nothing_is_promised():
+    from compvdo.plan import estimate_range
+    assert estimate_range(make_info(vbitrate=800_000)) == (0, 0)
+
+
+def test_estimate_range_never_promises_more_than_the_file_holds():
+    from compvdo.plan import estimate_range
+    i = make_info(vbitrate=200_000_000)
+    assert estimate_range(i)[1] <= i.size

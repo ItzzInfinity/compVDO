@@ -16,6 +16,9 @@ dev = ["pytest>=7"]
 [project.scripts]
 compvdo = "compvdo.cli:main"
 
+[project.gui-scripts]
+compvdo-gui = "compvdo.gui.app:main"
+
 [tool.setuptools.packages.find]
 include = ["compvdo*"]
 

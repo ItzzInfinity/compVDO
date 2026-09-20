@@ -14,11 +14,11 @@ compression artifacts bit for bit.
 
 Measured on this project's own test clip:
 
-| Mode | Result |
-|---|---|
-| `archive` (true lossless, FFV1) | 5.0 MB → **10.2 MB** — bit-exact, and twice the size |
-| `high` (visually lossless, HEVC CRF 20) | 5.0 MB → 2.4 MB |
-| `medium` (default, HEVC CRF 24) | 5.0 MB → 2.0 MB |
+| Mode                                    | Result                                               |
+| --------------------------------------- | ---------------------------------------------------- |
+| `archive` (true lossless, FFV1)         | 5.0 MB → **10.2 MB** — bit-exact, and twice the size |
+| `high` (visually lossless, HEVC CRF 20) | 5.0 MB → 2.4 MB                                      |
+| `medium` (default, HEVC CRF 24)         | 5.0 MB → 2.0 MB                                      |
 
 So the default is **visually lossless**: modern codec, high quality, typically
 40–70 % smaller with nothing you can see at normal viewing distance. True

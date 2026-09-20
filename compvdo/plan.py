@@ -264,6 +264,23 @@ def estimate(info: MediaInfo, mode: str = "medium") -> tuple[float, int]:
     return bpp, max(0, saving)
 
 
+# Measured 2026-09-20 on four real phone clips (see docs/qa-checklist.md):
+# three files at an identical 0.086 bits/pixel compressed to 77%, 64% and 29%
+# of their original size. The model is roughly unbiased but cannot see content
+# complexity, so a single number would be a lie dressed as arithmetic. Callers
+# that show a figure to a person should show the range and point at `preview`.
+ESTIMATE_ERROR = 0.5
+
+
+def estimate_range(info: MediaInfo, mode: str = "medium") -> tuple[int, int]:
+    """(low, high) bytes saved. Wide on purpose — see ESTIMATE_ERROR."""
+    saving = estimate(info, mode)[1]
+    if saving <= 0:
+        return 0, 0
+    return (max(0, int(saving * (1 - ESTIMATE_ERROR))),
+            min(info.size, int(saving * (1 + ESTIMATE_ERROR))))
+
+
 def rank(infos: list[MediaInfo], mode: str = "medium") -> list[ScanEntry]:
     """Biggest estimated saving first; rank 0 is 'compress this one first'."""
     entries = []
