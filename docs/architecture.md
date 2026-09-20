@@ -156,6 +156,31 @@ a trash operation, which violates R2.3.
   not this code. That document exists so two implementations can be checked
   against one spec — which is exactly how the 2026-09-20 validation was done.
 
+### Android: where a batch lives
+
+`CompressionQueue` is a process-scoped object, not a ViewModel, and that is the
+whole point. The batch used to run in `CompressViewModel`'s `viewModelScope`,
+tied to the `compress` navigation entry — so leaving that screen **cancelled the
+encode**, and the app hid the bottom navigation bar during a batch to stop the
+user doing it. The fix inverts the relationship: the queue outlives every
+screen, `CompressScreen` is a window onto it, and closing the window changes
+nothing.
+
+Its scope is `Dispatchers.Main.immediate`, deliberately. Media3's `Transformer`
+is built, started, polled and cancelled on a single Looper thread and calls
+`verifyApplicationThread()` on each; the main looper is the only one guaranteed
+to exist for the process's lifetime. The encoding does not run there — MediaCodec
+has its own threads — so this does not block the UI.
+
+Two things are easy to get wrong here and are worth keeping in mind:
+
+- Each batch runs as a **child of the queue's scope, not of the drain loop**, so
+  cancelling one batch leaves the loop and everything queued behind it running.
+- `Job.join()` returns normally when the joined job was *cancelled*, not only
+  when it completed. The outcome has to be read from `job.isCancelled`
+  afterwards; a `try/catch` around `join()` never fires, which silently produced
+  no completion event for a cancelled batch.
+
 ## Platform notes
 
 | | ffmpeg source | GUI | Delete |

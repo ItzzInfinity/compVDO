@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.GridView
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -29,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.util.UnstableApi
 import com.compvdo.app.R
+import com.compvdo.app.compression.CompressionQueue
 import com.compvdo.app.data.AudioSetting
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.VideoInfo
@@ -54,7 +56,8 @@ import com.compvdo.app.util.FileSize
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onNavigateToCompress: (List<VideoInfo>, CompressionMode, Boolean, AudioSetting) -> Unit,
+    /** Open the queue detail screen. Compression itself starts here. */
+    onOpenQueue: () -> Unit,
     defaultMode: CompressionMode,
     defaultDeleteOriginals: Boolean,
     defaultAudio: AudioSetting,
@@ -63,6 +66,25 @@ fun HomeScreen(
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsState()
     var showOptions by remember { mutableStateOf(false) }
+    val snackbar = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    // 3.12 — ask for the notification permission at the moment the reason is
+    // obvious, which is now here rather than on the compress screen. A refusal
+    // costs the progress notification and nothing else.
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { /* the queue runs either way */ }
+
+    fun askForNotificationsOnce() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS,
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -103,13 +125,32 @@ fun HomeScreen(
             defaultAudio = defaultAudio,
             onStart = { mode, deleteOriginals, audio ->
                 showOptions = false
-                onNavigateToCompress(uiState.selectedVideos, mode, deleteOriginals, audio)
+                askForNotificationsOnce()
+                val chosen = uiState.selectedVideos
+                val ahead = CompressionQueue.enqueue(
+                    context, chosen, mode, audio, deleteOriginals,
+                )
+                // The selection is cleared so the next pick starts fresh; the
+                // queue owns those videos now.
+                viewModel.deselectAll()
+                scope.launch {
+                    val result = snackbar.showSnackbar(
+                        message = if (ahead == 0)
+                            "Compressing ${chosen.size} video(s)"
+                        else
+                            "Queued ${chosen.size} video(s) — $ahead batch(es) ahead",
+                        actionLabel = "View",
+                        duration = SnackbarDuration.Short,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) onOpenQueue()
+                }
             },
             onDismiss = { showOptions = false },
         )
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 title = {

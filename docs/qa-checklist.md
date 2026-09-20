@@ -79,6 +79,20 @@ What this trial taught us:
 - [ ] Non-ASCII filenames and paths over 260 chars
 - [ ] Delete goes to the Recycle Bin
 
+## Background queue — to verify on device (2026-09-20)
+
+- [ ] Start a batch, switch to Log and Settings, come back: it is still running
+- [ ] Select more videos mid-batch and press Compress: the snackbar says
+      "Queued … N batch(es) ahead" and the current encode is unaffected
+- [ ] The banner above the navigation bar shows progress and opens the queue
+- [ ] Cancel stops only the running batch; anything queued behind it still runs
+- [ ] **Cancel still produces the completion dialog** (`job.join()` returns
+      normally on cancellation, so this path is easy to lose)
+- [ ] The completion dialog appears wherever you are, not only on the queue screen
+- [ ] Ticking "also remove the originals" then Done raises the system trash
+      prompt; leaving it unticked removes nothing
+- [ ] The foreground notification survives the hand-off between two batches
+
 ## Scrolling audit — 2026-09-20
 
 Reported: the Appearance section in Settings could not be reached. Cause was a

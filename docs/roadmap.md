@@ -78,6 +78,8 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 3b.14 Inherit DATE_TAKEN/DATE_MODIFIED on Android output — done 2026-09-20; without them the provider stamps "now" and every compressed file jumps to the top of the album instead of sitting beside its original
 - [x] 3b.15 Thumbnail performance — done 2026-09-20; a shared Coil loader in `CompVdoApp` with a 96 MB disk cache and a 20% memory cache, plus bounded decode sizes so a 4K frame is not decoded for a 64dp box
 - [x] 3b.16 Scrolling audit — done 2026-09-20; Settings could not reach Appearance (no `verticalScroll` on a `fillMaxSize` Column, which clips silently). Same latent bug fixed in the options sheet, CompressScreen and SortBar before it could be reported
+- [x] 3b.17 Compression runs in the background and is queueable — done 2026-09-20; `CompressionQueue` is process-scoped, so browsing, switching tabs and selecting more videos no longer touch a running encode. A second selection is appended, not refused. The bottom bar is no longer hidden during a batch (it existed to trap the user on the screen that owned the job), and a tappable banner above it reports progress
+- [x] 3b.18 Completion dialog — done 2026-09-20; modelled on the file-manager dialog the user referenced: title, one-line summary, scrollable per-file result list, an optional "also remove the originals" checkbox and a single Done. Shows wherever the user happens to be, because it is hosted above the nav graph
 - [M] 3.6b Re-trial on device after the 2026-09-20 fixes — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
 
 ### Phase 3 follow-up — from the 2026-09-20 code validation
