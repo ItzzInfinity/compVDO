@@ -341,3 +341,32 @@ def test_the_audio_combo_is_disabled_while_busy(window):
     assert not window.audio.isEnabled()
     window._set_busy(False)
     assert window.audio.isEnabled()
+
+
+# --- theme control (R12.4) -------------------------------------------------
+
+def test_theme_defaults_to_following_the_system(window):
+    assert window.current_theme() == "system"
+
+
+@pytest.mark.parametrize("index,expected", [(0, "system"), (1, "light"), (2, "dark")])
+def test_theme_choice_persists(window, index, expected):
+    from compvdo.settings import load
+    window.theme.setCurrentIndex(index)
+    assert window.current_theme() == expected
+    assert load()["ui"]["theme"] == expected
+
+
+def test_choosing_light_restyles_the_running_app(qapp, window):
+    """A setting that needs a restart to take effect feels broken."""
+    window.theme.setCurrentIndex(2)           # dark
+    dark_sheet = qapp.styleSheet()
+    window.theme.setCurrentIndex(1)           # light
+    assert qapp.styleSheet() != dark_sheet
+    assert "@" not in qapp.styleSheet()
+
+
+def test_theme_combo_offers_exactly_the_three_modes(window):
+    assert [window.theme.itemText(i) for i in range(window.theme.count())] == [
+        "Follow system", "Light", "Dark",
+    ]

@@ -71,6 +71,8 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 3.5 The UI (list, sortable, progress card, settings) — done 2026-09-20; Compose M3 across Home/Compress/Settings screens
 - [x] 3.6 Build and trial on a real device — done 2026-09-20; cancel, encode, verify and the delete offer all confirmed working. Three defects found and fixed same-day (Download output path, external-player URI grant, redundant rescans). Re-trial needed for those fixes — see qa-checklist.md
 - [x] 3b.11 Fix the list-view layout found in the 16:11 screenshots — done 2026-09-20; resolution no longer wraps (one non-wrapping line, rung labels), thumbnails are 16:9 Fit so orientation reads, and the scanner reports display rather than coded dimensions
+- [x] 3b.12 Use the supplied `iconCompVDO.png` as the launcher icon — done 2026-09-20; glyph extracted by flood-filling the page background inwards (a colour key would also have erased the document's near-white interior), rendered into all five density buckets at 70dp on the 108dp canvas, plus a derived monochrome layer. The wordmark and tagline were dropped — see the note in manual-task.md
+- [x] 3b.13 Light/dark setting on both platforms (R12.4) — done 2026-09-20; Android gets a Follow system / Light / Dark radio in Settings, desktop gets an Appearance combo that restyles the running app rather than needing a restart
 - [M] 3.6b Re-trial on device after the 2026-09-20 fixes — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
 
 ### Phase 3 follow-up — from the 2026-09-20 code validation

@@ -22,6 +22,7 @@ class PreferencesRepo(private val context: Context) {
         private val KEY_DELETE_ORIGINAL = booleanPreferencesKey("delete_original")
         private val KEY_SORT_ORDER = stringPreferencesKey("sort_order")
         private val KEY_AUDIO = stringPreferencesKey("audio_setting")
+        private val KEY_THEME = stringPreferencesKey("theme_setting")
     }
 
     val compressionMode: Flow<CompressionMode> = context.dataStore.data.map { prefs ->
@@ -53,6 +54,19 @@ class PreferencesRepo(private val context: Context) {
             // crash the app — fall back to the safe choice.
             AudioSetting.DEFAULT
         }
+    }
+
+    /** R12.4 — light/dark, defaulting to whatever the system says. */
+    val themeSetting: Flow<ThemeSetting> = context.dataStore.data.map { prefs ->
+        try {
+            ThemeSetting.valueOf(prefs[KEY_THEME] ?: ThemeSetting.DEFAULT.name)
+        } catch (_: Exception) {
+            ThemeSetting.DEFAULT
+        }
+    }
+
+    suspend fun setThemeSetting(setting: ThemeSetting) {
+        context.dataStore.edit { it[KEY_THEME] = setting.name }
     }
 
     suspend fun setAudioSetting(setting: AudioSetting) {

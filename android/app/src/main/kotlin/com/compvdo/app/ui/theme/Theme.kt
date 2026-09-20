@@ -11,9 +11,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 /**
- * compVDO Material 3 theme — follows system light/dark (R12.4).
- * Uses dynamic colour on Android 12+ for a device-native feel,
- * falls back to the brand blue seed colour on older devices.
+ * compVDO Material 3 theme — implements R12.4.
+ *
+ * [darkTheme] defaults to the system setting, and the caller overrides it from
+ * the user's saved [com.compvdo.app.data.ThemeSetting] when they have chosen
+ * one explicitly. Uses dynamic colour on Android 12+ for a device-native feel,
+ * falling back to the brand blue seed on older devices.
  */
 
 private val LightColorScheme = lightColorScheme(

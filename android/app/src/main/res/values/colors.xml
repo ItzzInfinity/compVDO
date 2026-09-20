@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Flat fallback for the launcher background gradient (mid-tone of
-         ic_compvdo_background). Kept so anything referencing the colour still
-         resolves to the right hue instead of the old plain white. -->
-    <color name="ic_launcher_background">#0D74C4</color>
+    <!-- The adaptive icon's background layer: the supplied logo's own page
+         colour, so the mark reads as it was drawn. -->
+    <color name="ic_launcher_background">#EFF9FA</color>
     <color name="seed">#0277BD</color>
 </resources>

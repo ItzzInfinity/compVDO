@@ -145,5 +145,20 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
   - [x] should not be less than 128kbps — one named constant
         (`AUDIO_MIN_KBPS = 128`); a lower request is clamped **and** reported
         rather than silently obeyed.
+### Note on the icon (2026-09-20)
+
+`iconCompVDO.png` is now the launcher icon, with **one deliberate change**: the
+"compVDO / Compress. Optimize. Play." wordmark was dropped and only the glyph
+kept. At 48dp — the size a launcher actually draws — the tagline is roughly one
+pixel per stroke and reads as grey noise. The glyph alone is what survives.
+
+Two things worth knowing:
+- The source is **181x175**, so the glyph is only 86x95 pixels before scaling.
+  It is upscaled to 280px for xxxhdpi and is therefore slightly soft. If you
+  have the original vector (SVG/AI) it would be a visibly sharper icon.
+- The background is your own page colour (`#EFF9FA`), so it reads as drawn.
+
+Say the word if you want the full lockup including the text.
+
 ## Completed
 <!-- Move finished items down here with the date. -->

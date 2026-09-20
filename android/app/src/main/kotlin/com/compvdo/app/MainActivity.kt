@@ -27,6 +27,7 @@ import androidx.navigation.compose.rememberNavController
 import com.compvdo.app.data.AudioSetting
 import com.compvdo.app.data.CompressionMode
 import com.compvdo.app.data.PreferencesRepo
+import com.compvdo.app.data.ThemeSetting
 import com.compvdo.app.data.VideoInfo
 import com.compvdo.app.ui.screens.CompressScreen
 import com.compvdo.app.ui.screens.HomeScreen
@@ -49,7 +50,18 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         setContent {
-            CompVdoTheme {
+            // Read the preference here, above the theme, so switching it
+            // recomposes the whole tree and the change is immediate.
+            val prefs = remember { PreferencesRepo(applicationContext) }
+            val theme by prefs.themeSetting.collectAsState(initial = ThemeSetting.DEFAULT)
+
+            CompVdoTheme(
+                darkTheme = when (theme) {
+                    ThemeSetting.SYSTEM -> androidx.compose.foundation.isSystemInDarkTheme()
+                    ThemeSetting.LIGHT -> false
+                    ThemeSetting.DARK -> true
+                },
+            ) {
                 CompVdoRoot()
             }
         }

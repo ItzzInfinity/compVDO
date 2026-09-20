@@ -15,6 +15,7 @@ import com.compvdo.app.BuildConfig
 import com.compvdo.app.R
 import com.compvdo.app.data.AudioSetting
 import com.compvdo.app.data.CompressionMode
+import com.compvdo.app.data.ThemeSetting
 import com.compvdo.app.data.PreferencesRepo
 import kotlinx.coroutines.launch
 
@@ -33,6 +34,7 @@ fun SettingsScreen(
     val currentMode by prefs.compressionMode.collectAsState(initial = CompressionMode.DEFAULT)
     val deleteOriginal by prefs.deleteOriginal.collectAsState(initial = false)
     val audioSetting by prefs.audioSetting.collectAsState(initial = AudioSetting.DEFAULT)
+    val themeSetting by prefs.themeSetting.collectAsState(initial = ThemeSetting.DEFAULT)
 
     Scaffold(
         topBar = {
@@ -138,6 +140,37 @@ fun SettingsScreen(
                     RadioButton(
                         selected = audioSetting == option,
                         onClick = { scope.launch { prefs.setAudioSetting(option) } },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(option.label, style = MaterialTheme.typography.bodyLarge)
+                        Text(
+                            option.description,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider()
+
+            // R12.4 — light/dark, independent of the phone's setting.
+            Text(text = "Appearance", style = MaterialTheme.typography.titleMedium)
+            ThemeSetting.entries.forEach { option ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = themeSetting == option,
+                            onClick = { scope.launch { prefs.setThemeSetting(option) } },
+                        )
+                        .padding(vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    RadioButton(
+                        selected = themeSetting == option,
+                        onClick = { scope.launch { prefs.setThemeSetting(option) } },
                     )
                     Spacer(Modifier.width(8.dp))
                     Column {

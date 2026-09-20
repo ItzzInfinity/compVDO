@@ -286,6 +286,19 @@ class MainWindow(QMainWindow):
         self.delete_note.setVisible(self.delete_original.isChecked())
         box.addWidget(self.delete_note)
 
+        box.addWidget(QLabel("Appearance"))
+        self.theme = QComboBox()
+        self.theme.addItems([
+            "Follow system",
+            "Light",
+            "Dark",
+        ])
+        self.theme.setCurrentIndex(
+            {"system": 0, "light": 1, "dark": 2}.get(self.theme_preference, 0)
+        )
+        self.theme.currentIndexChanged.connect(self._on_theme_changed)
+        box.addWidget(self.theme)
+
         box.addSpacing(6)
         self.btn_preview = QPushButton("Preview selected file…")
         self.btn_preview.setEnabled(False)
@@ -402,6 +415,7 @@ class MainWindow(QMainWindow):
         self._settings["defaults"]["audio"] = self.current_audio()
         self._settings["defaults"]["delete_original"] = self.delete_original.isChecked()
         self._settings["ui"]["last_folder"] = str(self._folder) if self._folder else None
+        self._settings["ui"]["theme"] = self.current_theme()
         save(self._settings)
 
     def _sync_mode_dependent_widgets(self) -> None:
@@ -422,6 +436,27 @@ class MainWindow(QMainWindow):
         self._persist()
         if self._entries:
             self._refill_table()
+
+    def current_theme(self) -> str:
+        return ("system", "light", "dark")[self.theme.currentIndex()]
+
+    def _on_theme_changed(self) -> None:
+        """Re-theme the running application, not just the next launch.
+
+        A restart to see a colour change is the kind of small insult that makes
+        a setting feel broken, so the stylesheet is rebuilt in place.
+        """
+        from PySide6.QtWidgets import QApplication
+
+        from .app import apply_theme
+
+        self.theme_preference = self.current_theme()
+        app = QApplication.instance()
+        if app is not None:
+            dark = apply_theme(app, self.theme_preference)
+            self._log("INFO", f"theme: {self.theme_preference} "
+                              f"({'dark' if dark else 'light'})")
+        self._persist()
 
     def _on_delete_toggled(self) -> None:
         self.delete_note.setVisible(self.delete_original.isChecked())
