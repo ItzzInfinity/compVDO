@@ -13,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from .cpu import budget as cpu_budget
 from .model import Caps, JobSpec, MediaInfo, ScanEntry, output_container
 
 # ---------------------------------------------------------------------------
@@ -51,6 +52,7 @@ class Plan:
     crf: int | None
     audio_action: str        # 'copy' or 'aac'
     notes: tuple[str, ...]   # user-facing warnings, e.g. the archive growth one
+    threads: int = 0         # cores this job is allowed (0 = unset)
 
 
 # ---------------------------------------------------------------------------
@@ -161,15 +163,24 @@ def is_compressed_output(path: Path) -> bool:
 # The build
 # ---------------------------------------------------------------------------
 
-def build(spec: JobSpec, caps: Caps, tmp: Path) -> Plan:
-    """The whole ffmpeg command line for one job. Pure — touches no disk."""
+def build(spec: JobSpec, caps: Caps, tmp: Path, cores: int | None = None) -> Plan:
+    """The whole ffmpeg command line for one job. Pure — touches no disk.
+
+    `cores` is the thread budget; None means "work it out from the machine",
+    which leaves RESERVED_CORES free so the desktop stays usable.
+    """
     src, mode = spec.src, spec.mode
+    threads = cpu_budget(cores)
     encoder = choose_encoder(caps, mode, spec.hw)
     crf = resolve_crf(encoder, mode, spec.crf)
     target_ext = tmp.suffix.lstrip(".").lower()
     notes: list[str] = []
 
-    argv: list[str] = [str(caps.ffmpeg), "-hide_banner", "-nostdin", "-y"]
+    # -threads caps ffmpeg's own decode/filter pools. It is NOT enough on its
+    # own for x265, which runs a private thread pool sized from the machine and
+    # ignores it; that needs pools= in -x265-params below.
+    argv: list[str] = [str(caps.ffmpeg), "-hide_banner", "-nostdin", "-y",
+                       "-threads", str(threads)]
 
     if encoder == "hevc_vaapi":
         # The device and the hwupload filter must both be present; VAAPI
@@ -186,7 +197,8 @@ def build(spec: JobSpec, caps: Caps, tmp: Path) -> Plan:
     if encoder == "ffv1":
         # level 3 + slicecrc is the archival-safe configuration; slices give
         # us multithreading, the CRC makes corruption detectable.
-        argv += ["-level", "3", "-g", "1", "-slices", "16", "-slicecrc", "1"]
+        argv += ["-level", "3", "-g", "1", "-slices", "16", "-slicecrc", "1",
+                 "-threads", str(threads)]
         notes.append(
             "archive mode is mathematically lossless and will usually produce a "
             "LARGER file than the original, because the original is already "
@@ -194,9 +206,10 @@ def build(spec: JobSpec, caps: Caps, tmp: Path) -> Plan:
         )
     elif encoder in ("libx265", "libx264"):
         argv += ["-preset", _PRESET, "-crf", str(crf)]
+        argv += ["-threads", str(threads)]          # output-side decoder/encoder
         if encoder == "libx265":
             argv += ["-tag:v", "hvc1"] if target_ext == "mp4" else []
-            argv += ["-x265-params", "log-level=error"]
+            argv += ["-x265-params", f"log-level=error:pools={threads}"]
     elif encoder.endswith("_vaapi"):
         # VAAPI has no CRF; -qp is the closest constant-quality control.
         argv += ["-qp", str(crf)]
@@ -233,7 +246,7 @@ def build(spec: JobSpec, caps: Caps, tmp: Path) -> Plan:
     argv += ["-progress", "pipe:1", "-nostats", "-loglevel", "error", str(tmp)]
 
     return Plan(argv=argv, encoder=encoder, crf=crf, audio_action=audio_action,
-                notes=tuple(notes))
+                notes=tuple(notes), threads=threads)
 
 
 # ---------------------------------------------------------------------------

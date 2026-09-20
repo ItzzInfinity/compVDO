@@ -1,4 +1,17 @@
-"""The main window. Widgets and wiring only — all real work goes to the core."""
+"""compVDO main window.
+
+Owns:   the single application window. There is no tab bar; this application has
+        one surface (dev_guide.md §3 applies, §4's tab machinery does not).
+Reads:  the user's settings file, via compvdo.settings; media metadata via
+        compvdo.scan / compvdo.probe.
+Writes: the user's settings file. Nothing else — all output is written by
+        compvdo.encode, beside the original (R1.1).
+Runs:   ffmpeg and ffprobe, always through compvdo.encode / compvdo.probe and
+        always off the UI thread (dev_guide.md §5 Pattern C, §9).
+
+Widgets and wiring only. Any code here that builds an ffmpeg argument is in the
+wrong file; that belongs in compvdo.plan.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +31,7 @@ from ..cli import clock, human
 from ..model import MODES, JobResult, ScanEntry
 from ..probe import FFmpegMissing
 from ..scan import sort_entries
+from ..cpu import describe as describe_cores
 from ..settings import cached_caps, load, save
 from .worker import EncodeWorker, PreviewWorker, ScanWorker
 
@@ -99,6 +113,7 @@ class MainWindow(QMainWindow):
         self._preview_worker: PreviewWorker | None = None
         self._folder: Path | None = None
         self._caps = None
+        self._busy = False              # dev_guide.md §7.5: exactly one flag
 
         self._build()
         self._load_caps()
@@ -316,10 +331,17 @@ class MainWindow(QMainWindow):
             self.btn_open.setEnabled(False)
             return
         hw = "hardware encoding available" if self._caps.vaapi_device else "software encoding"
-        self.caps_label.setText(f"ffmpeg {self._caps.ffmpeg_version} · {hw}")
+        self.caps_label.setText(f"ffmpeg {self._caps.ffmpeg_version} · {hw} · "
+                                f"{describe_cores(self._cores())}")
 
-    def _say(self, text: str) -> None:
-        self.log.appendPlainText(text)
+    def _log(self, tag: str, text: str) -> None:
+        """The single place anything reaches the console (dev_guide.md §11).
+
+        Vocabulary: TX a command we sent, RX a line back, INFO normal progress,
+        WARN skipped or degraded but continuing, ERR the operation failed.
+        """
+        if text:
+            self.log.appendPlainText(f"[{tag}] {text.rstrip()}")
 
     def current_mode(self) -> str:
         return MODES[self.mode.currentIndex()]
@@ -371,7 +393,7 @@ class MainWindow(QMainWindow):
                 self._scan_worker.terminate()
                 self._scan_worker.wait(1000)
         if (n := prepare(folder)):
-            self._say(f"cleared {n} temp file(s) from an interrupted run")
+            self._log("INFO", f"cleared {n} temp file(s) from an interrupted run")
         self.table.setRowCount(0)
         self._entries, self._results = [], {}
         self.summary.setText("scanning…")
@@ -389,7 +411,7 @@ class MainWindow(QMainWindow):
         self._entries = entries
         self._refill_table()
         for path, why in skipped:
-            self._say(f"skipped {path.name}: {why}")
+            self._log("WARN", f"skipped {path.name}: {why}")
         self.statusBar().showMessage(
             f"{len(entries)} video(s) found" + (f", {len(skipped)} unreadable" if skipped else ""))
 
@@ -477,10 +499,24 @@ class MainWindow(QMainWindow):
         if item.column() == COL_CHECK:
             self._update_buttons()
 
+    def _set_busy(self, busy: bool) -> None:
+        """The single place run/cancel enablement is decided (dev_guide.md §7.5).
+
+        Idempotent, and called from every terminal path including error and
+        cancel — a leaked busy flag leaves the window dead until restart.
+        """
+        self._busy = busy
+        self.btn_cancel.setEnabled(busy)
+        self.btn_open.setEnabled(not busy)
+        self.btn_rescan.setEnabled(not busy and self._folder is not None)
+        self.mode.setEnabled(not busy)
+        self.hw.setEnabled(not busy)
+        self.delete_original.setEnabled(not busy)
+        self._update_buttons()
+
     def _update_buttons(self) -> None:
-        busy = bool(self._encode_worker and self._encode_worker.isRunning())
-        self.btn_start.setEnabled(bool(self._checked_paths()) and not busy)
-        self.btn_preview.setEnabled(self._selected_entry() is not None and not busy)
+        self.btn_start.setEnabled(bool(self._checked_paths()) and not self._busy)
+        self.btn_preview.setEnabled(self._selected_entry() is not None and not self._busy)
 
     def _selected_entry(self) -> ScanEntry | None:
         rows = {i.row() for i in self.table.selectedIndexes()}
@@ -514,17 +550,22 @@ class MainWindow(QMainWindow):
             if answer != QMessageBox.StandardButton.Yes:
                 return
 
+        delete = self.delete_original.isChecked()
+        if delete and not self._confirm_delete(infos):
+            return
+
         specs, already = plan_jobs(
             infos, mode=mode, hw="auto" if self.hw.isChecked() else "off",
-            delete_original=self.delete_original.isChecked())
+            delete_original=delete)
         for src, prev in already:
-            self._say(f"skipped {src.name}: {prev.name} already exists")
+            self._log("WARN", f"skipped {src.name}: {prev.name} already exists")
         if not specs:
             QMessageBox.information(self, "Nothing to do",
                                     "Every selected file already has a compressed version.")
             return
 
-        self._encode_worker = EncodeWorker(specs, self._caps, resume_in=self._folder)
+        self._encode_worker = EncodeWorker(specs, self._caps, resume_in=self._folder,
+                                           cores=self._cores())
         self._encode_worker.file_progress.connect(self._on_file_progress)
         self._encode_worker.file_done.connect(self._on_file_done)
         self._encode_worker.all_done.connect(self._on_all_done)
@@ -533,12 +574,49 @@ class MainWindow(QMainWindow):
         self._encode_worker.finished.connect(self._update_buttons)
 
         self._total_jobs = len(specs)
-        self.btn_cancel.setEnabled(True)
-        self.btn_start.setEnabled(False)
-        self.btn_open.setEnabled(False)
-        self.btn_rescan.setEnabled(False)
-        self._say(f"compressing {len(specs)} file(s) at mode={mode}")
+        self._set_busy(True)
+        self._log("TX", f"ffmpeg × {len(specs)} at mode={mode}, "
+                        f"hw={'auto' if self.hw.isChecked() else 'off'}, "
+                        f"{describe_cores(self._cores())}")
         self._encode_worker.start()
+
+    def _cores(self) -> int | None:
+        value = self._settings["defaults"].get("cores")
+        return int(value) if value else None
+
+    def _confirm_delete(self, infos: list) -> bool:
+        """dev_guide.md §12 — name the targets, count them, say it is final.
+
+        The safe button is the default, so a stray Return key cannot delete
+        anyone's holiday footage.
+        """
+        shown = [i.path.name for i in infos[:12]]
+        listing = "\n".join(f"  • {n}" for n in shown)
+        if len(infos) > len(shown):
+            listing += f"\n  … and {len(infos) - len(shown)} more"
+        total = sum(i.size for i in infos)
+
+        box = QMessageBox(self)
+        box.setIcon(QMessageBox.Icon.Warning)
+        box.setWindowTitle("Delete the originals?")
+        box.setText(
+            f"After compressing, these {len(infos)} original file(s) "
+            f"({human(total)}) will be moved to the system trash:")
+        box.setInformativeText(
+            f"{listing}\n\n"
+            "Each original is deleted only after its new file passes "
+            "verification, and never if the new file is larger. "
+            "Recovering them afterwards means digging in the trash.")
+        box.setStandardButtons(QMessageBox.StandardButton.Cancel
+                               | QMessageBox.StandardButton.Yes)
+        box.setDefaultButton(QMessageBox.StandardButton.Cancel)
+        box.button(QMessageBox.StandardButton.Yes).setText("Compress and delete")
+        if box.exec() != QMessageBox.StandardButton.Yes:
+            self._log("INFO", "delete cancelled; nothing was changed")
+            return False
+        self._log("WARN", f"originals will be trashed after verification "
+                          f"({len(infos)} file(s), {human(total)})")
+        return True
 
     def _on_file_progress(self, idx: int, total: int, name: str, fraction: float) -> None:
         self.current_label.setText(f"[{idx}/{total}] {name}")
@@ -551,9 +629,11 @@ class MainWindow(QMainWindow):
     def _on_file_done(self, result: JobResult) -> None:
         self._results[str(result.spec.src.path)] = result
         ratio = f"{result.ratio * 100:.0f}%" if result.ratio else "—"
-        self._say(f"{result.status.upper():9} {result.spec.src.path.name}  "
-                  f"{human(result.spec.src.size)} → {human(result.dst_size)} ({ratio})"
-                  + (f"  · {result.message}" if result.message else ""))
+        tag = {"ok": "INFO", "skipped": "INFO", "grew": "WARN",
+               "cancelled": "WARN", "failed": "ERR"}[result.status]
+        self._log(tag, f"{result.status.upper():9} {result.spec.src.path.name}  "
+                       f"{human(result.spec.src.size)} → {human(result.dst_size)} ({ratio})"
+                       + (f"  · {result.message}" if result.message else ""))
         for row in range(self.table.rowCount()):
             item = self.table.item(row, COL_CHECK)
             if item and item.data(Qt.ItemDataRole.UserRole) == str(result.spec.src.path):
@@ -561,9 +641,7 @@ class MainWindow(QMainWindow):
                 break
 
     def _on_all_done(self, results: list) -> None:
-        self.btn_cancel.setEnabled(False)
-        self.btn_open.setEnabled(True)
-        self.btn_rescan.setEnabled(True)
+        self._set_busy(False)
         self.file_bar.setValue(0)
         self.overall_bar.setValue(1000)
         ok = [r for r in results if r.status == "ok"]
@@ -575,10 +653,24 @@ class MainWindow(QMainWindow):
             + (f", {len(grew)} grew" if grew else "")
             + (f", {len(failed)} failed" if failed else ""))
         self.overall_label.setText("")
-        self._update_buttons()
+
+        # dev_guide.md §11: a run that does not say where its output went has
+        # failed the operator.
+        if ok:
+            where = ok[0].spec.dst.parent
+            self._log("INFO", f"{len(ok)} file(s) written to {where}")
+        if grew:
+            self._log("WARN", f"{len(grew)} output(s) were larger than the "
+                              f"original and were kept; no original was deleted")
+        for r in failed:
+            self._log("ERR", f"{r.spec.src.path.name}: "
+                             f"{r.message.splitlines()[0] if r.message else 'unknown failure'}")
 
     def _cancel(self) -> None:
+        if not self._busy:
+            return
         if self._encode_worker:
+            self._log("INFO", "cancel requested")
             self._encode_worker.cancel()
             self.current_label.setText("cancelling…")
             self.btn_cancel.setEnabled(False)
@@ -590,10 +682,11 @@ class MainWindow(QMainWindow):
         if not entry:
             return
         self.btn_preview.setEnabled(False)
+        self._log("TX", f"preview sample of {entry.info.path.name}")
         self.current_label.setText(f"preview: {entry.info.path.name}")
         self._preview_worker = PreviewWorker(
             entry.info.path, self._caps, self.current_mode(),
-            "auto" if self.hw.isChecked() else "off")
+            "auto" if self.hw.isChecked() else "off", cores=self._cores())
         self._preview_worker.progress.connect(lambda f: self.file_bar.setValue(int(f * 1000)))
         self._preview_worker.finished_ok.connect(self._on_preview_done)
         self._preview_worker.failed.connect(self._on_preview_failed)

@@ -86,7 +86,8 @@ def run_batch(specs: Sequence[JobSpec], caps: Caps, *,
               cancel: CancelToken | None = None,
               resume_in: Path | None = None,
               purge: bool = False,
-              deep_verify: bool = True) -> list[JobResult]:
+              deep_verify: bool = True,
+              cores: int | None = None) -> list[JobResult]:
     """Encode each spec in turn. Returns one JobResult per spec, in order."""
     total = len(specs)
     state = RunState.load(resume_in, specs[0].mode if specs else "medium") if resume_in else None
@@ -109,7 +110,8 @@ def run_batch(specs: Sequence[JobSpec], caps: Caps, *,
                 on_done(idx, total, results[-1])
             continue
 
-        result = _run_one(spec, caps, idx, total, on_progress, cancel, purge, deep_verify)
+        result = _run_one(spec, caps, idx, total, on_progress, cancel, purge,
+                          deep_verify, cores)
         results.append(result)
 
         if state is not None:
@@ -131,11 +133,12 @@ def run_batch(specs: Sequence[JobSpec], caps: Caps, *,
 
 def _run_one(spec: JobSpec, caps: Caps, idx: int, total: int,
              on_progress: ProgressFn | None, cancel: CancelToken | None,
-             purge: bool, deep_verify: bool) -> JobResult:
+             purge: bool, deep_verify: bool,
+             cores: int | None = None) -> JobResult:
     """One file, with every failure turned into a JobResult (R9.3)."""
     try:
         outcome = encode_run(
-            spec, caps, cancel=cancel,
+            spec, caps, cancel=cancel, cores=cores,
             on_progress=(lambda f, s: on_progress(idx, total, spec, f, s)) if on_progress else None,
         )
     except PlanError as e:
@@ -154,7 +157,7 @@ def _run_one(spec: JobSpec, caps: Caps, idx: int, total: int,
     result = JobResult(spec, status, dst_size=dst_size, seconds=outcome.seconds,
                        message="; ".join(outcome.plan.notes))
 
-    verdict = check(spec.src, spec.dst, caps, deep=deep_verify)    # R8
+    verdict = check(spec.src, spec.dst, caps, deep=deep_verify, cores=cores)   # R8
     result.verified = bool(verdict)
     if not verdict:
         result.message = "; ".join((*verdict.reasons, result.message)).strip("; ")

@@ -1,0 +1,18 @@
+# Runtime dependencies, pinned (dev_guide.md §4 step 4).
+#
+# The core (compvdo/, excluding compvdo/gui/) deliberately has NONE: it is
+# stdlib-only so the CLI runs on any Python 3.10+ with no install step.
+# Everything below is for the desktop GUI.
+#
+#   pip install -r requirements.txt
+#
+# System dependency, NOT installable from here:
+#   ffmpeg >= 4.4  (Ubuntu/Debian: apt install ffmpeg)
+#   A tool that fails at run time with a missing-ffmpeg error is a support
+#   call, not a bug report — `compvdo caps` reports what is present.
+
+PySide6==6.11.2
+
+# Optional. Without it, deleting an original on Windows falls back to asking
+# for confirmation and unlinking, rather than using the Recycle Bin.
+send2trash==1.8.3 ; sys_platform == "win32"

@@ -16,7 +16,7 @@ CAPS_MAX_AGE = 30 * 24 * 3600          # re-probe monthly
 DEFAULTS = {
     "version": SCHEMA_VERSION,
     "defaults": {"mode": "medium", "hw": "off", "delete_original": False,
-                 "jobs": 1, "container": None},
+                 "jobs": 1, "container": None, "cores": None},
     "ui": {"theme": "system", "last_folder": None, "sort": "savings"},
     "caps": None,
 }

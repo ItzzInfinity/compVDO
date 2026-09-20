@@ -79,10 +79,11 @@ def _parse_progress(line: str) -> tuple[str, str] | None:
 def run(spec: JobSpec, caps: Caps, *,
         on_progress: ProgressFn | None = None,
         cancel: CancelToken | None = None,
-        duration_override: float | None = None) -> EncodeOutcome:
+        duration_override: float | None = None,
+        cores: int | None = None) -> EncodeOutcome:
     """Encode one file. The original is never touched (R2.1)."""
     tmp = temp_path_for(spec.dst)
-    plan = build(spec, caps, tmp)
+    plan = build(spec, caps, tmp, cores)
     duration = duration_override or spec.src.duration
     started = time.monotonic()
 

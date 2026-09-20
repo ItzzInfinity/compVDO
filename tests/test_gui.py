@@ -225,3 +225,74 @@ def test_choosing_a_second_folder_replaces_the_first(qapp, tmp_path, monkeypatch
         assert w.folder_label.text() == str(second)
     finally:
         w.close()
+
+
+# --- dev_guide.md norms ----------------------------------------------------
+
+def test_console_uses_the_standard_prefix_vocabulary(window):
+    """dev_guide.md §11 — one prefix vocabulary across the application."""
+    window._log("INFO", "hello")
+    window._log("WARN", "careful")
+    window._log("ERR", "broken")
+    window._log("INFO", "")            # empty must not emit a bare prefix
+    text = window.log.toPlainText()
+    assert text.splitlines() == ["[INFO] hello", "[WARN] careful", "[ERR] broken"]
+
+
+def test_one_busy_flag_governs_every_control(window):
+    """dev_guide.md §7.5 — one flag, one method, idempotent."""
+    i = make_info(vbitrate=40_000_000)
+    window._entries = [ScanEntry(info=i, bpp=i.bpp, est_saving=1, rank=0)]
+    window._refill_table()
+
+    window._set_busy(True)
+    assert window.btn_cancel.isEnabled()
+    for widget in (window.btn_start, window.btn_open, window.btn_rescan,
+                   window.mode, window.hw, window.delete_original,
+                   window.btn_preview):
+        assert not widget.isEnabled(), f"{widget.objectName() or widget} left live while busy"
+
+    window._set_busy(True)              # idempotent
+    window._set_busy(False)
+    assert not window.btn_cancel.isEnabled()
+    assert window.btn_open.isEnabled() and window.mode.isEnabled()
+
+
+def test_cancel_does_nothing_when_not_busy(window):
+    window._set_busy(False)
+    window._cancel()                    # must not raise
+    assert not window._busy
+
+
+def test_deleting_originals_asks_first_and_defaults_to_cancel(window, monkeypatch):
+    """dev_guide.md §12 — confirm with specifics, safe button focused."""
+    from PySide6.QtWidgets import QMessageBox
+
+    seen = {}
+
+    def fake_exec(self):
+        seen["text"] = self.text()
+        seen["detail"] = self.informativeText()
+        seen["default"] = self.defaultButton()
+        seen["cancel_btn"] = self.button(QMessageBox.StandardButton.Cancel)
+        return QMessageBox.StandardButton.Cancel
+
+    monkeypatch.setattr(QMessageBox, "exec", fake_exec)
+    infos = [make_info(path=Path(f"/v/clip{n}.mp4")) for n in range(3)]
+
+    assert window._confirm_delete(infos) is False        # declining means no
+    assert "3 original file(s)" in seen["text"]
+    assert "clip0.mp4" in seen["detail"]                 # names the targets
+    assert "trash" in seen["detail"].lower()
+    assert seen["default"] is seen["cancel_btn"], "safe button is not the default"
+
+
+def test_delete_confirmation_summarises_a_long_list(window, monkeypatch):
+    from PySide6.QtWidgets import QMessageBox
+    seen = {}
+    monkeypatch.setattr(QMessageBox, "exec",
+                        lambda self: (seen.update(detail=self.informativeText()),
+                                      QMessageBox.StandardButton.Yes)[1])
+    infos = [make_info(path=Path(f"/v/c{n}.mp4")) for n in range(30)]
+    assert window._confirm_delete(infos) is True
+    assert "and 18 more" in seen["detail"]               # 12 shown + 18

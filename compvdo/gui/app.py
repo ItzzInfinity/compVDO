@@ -1,4 +1,11 @@
-"""QApplication bootstrap and theming (R12.4).
+"""Application bootstrap and theming.
+
+Owns:   the single QApplication and the colour tokens.
+Reads:  theme.qss, anchored to __file__ (dev_guide.md §10).
+Writes: nothing.
+Runs:   nothing.
+
+(R12.4.)
 
 Colour tokens live here and are substituted into theme.qss at load time, so the
 stylesheet holds shape and spacing while this module holds the palette. That

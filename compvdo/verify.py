@@ -10,6 +10,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+from .cpu import budget as cpu_budget
 from .model import Caps, MediaInfo
 from .probe import ProbeError, info as probe_info
 
@@ -26,7 +27,8 @@ class Verdict:
         return self.ok
 
 
-def check(src: MediaInfo, dst: Path, caps: Caps, *, deep: bool = True) -> Verdict:
+def check(src: MediaInfo, dst: Path, caps: Caps, *, deep: bool = True,
+          cores: int | None = None) -> Verdict:
     """Compare an output against its source. `deep=False` skips the decode pass."""
     problems: list[str] = []
 
@@ -62,6 +64,7 @@ def check(src: MediaInfo, dst: Path, caps: Caps, *, deep: bool = True) -> Verdic
     if deep:
         proc = subprocess.run(
             [str(caps.ffmpeg), "-hide_banner", "-nostdin", "-v", "error",
+             "-threads", str(cpu_budget(cores)),
              "-i", str(dst), "-f", "null", "-"],
             capture_output=True, text=True, encoding="utf-8", errors="replace",
         )

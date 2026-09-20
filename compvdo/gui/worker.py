@@ -1,8 +1,15 @@
-"""QThread bridges over the core. No encoding logic lives here.
+"""Background workers for the main window.
 
-Everything in this file exists to move work off the UI thread and turn core
-callbacks into Qt signals (R12.1). If you find yourself building an ffmpeg
-argument here, it belongs in plan.py.
+Owns:   nothing on screen. Three QThread subclasses, one per long action.
+Reads:  media files, through compvdo.scan / compvdo.probe.
+Writes: compressed output, through compvdo.batch (beside the original, R1.1);
+        preview samples into a temp directory only (R11.2).
+Runs:   ffmpeg and ffprobe, as child processes of this process.
+
+dev_guide.md §5 Pattern C applies in full: a worker emits, it never touches a
+widget, and cancellation is cooperative through CancelToken rather than
+terminating the thread. If you find yourself building an ffmpeg argument here,
+it belongs in plan.py.
 """
 
 from __future__ import annotations
@@ -53,10 +60,11 @@ class EncodeWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, specs: list[JobSpec], caps: Caps, *, resume_in: Path | None,
-                 purge: bool = False, parent: QObject | None = None) -> None:
+                 purge: bool = False, cores: int | None = None,
+                 parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._specs, self._caps = specs, caps
-        self._resume_in, self._purge = resume_in, purge
+        self._resume_in, self._purge, self._cores = resume_in, purge, cores
         self.cancel_token = CancelToken()
 
     def cancel(self) -> None:
@@ -73,6 +81,7 @@ class EncodeWorker(QThread):
                 cancel=self.cancel_token,
                 resume_in=self._resume_in,
                 purge=self._purge,
+                cores=self._cores,
             )
         except Exception as e:                # noqa: BLE001
             self.failed.emit(str(e))
@@ -88,10 +97,12 @@ class PreviewWorker(QThread):
     failed = Signal(str)
 
     def __init__(self, src_path: Path, caps: Caps, mode: str, hw: str,
-                 seconds: float = 10.0, parent: QObject | None = None) -> None:
+                 seconds: float = 10.0, cores: int | None = None,
+                 parent: QObject | None = None) -> None:
         super().__init__(parent)
         self._path, self._caps = src_path, caps
         self._mode, self._hw, self._seconds = mode, hw, seconds
+        self._cores = cores
 
     def run(self) -> None:
         import subprocess
@@ -116,7 +127,7 @@ class PreviewWorker(QThread):
             cut = info(sample, self._caps)
             out = tmpdir / f"sample_compressed.{target_container(cut.container, self._mode)}"
             spec = JobSpec(src=cut, dst=out, mode=self._mode, hw=self._hw)
-            outcome = encode_run(spec, self._caps,
+            outcome = encode_run(spec, self._caps, cores=self._cores,
                                  on_progress=lambda f, s: self.progress.emit(f))
             if not outcome.ok:
                 self.failed.emit(outcome.stderr_tail or "preview encode failed")

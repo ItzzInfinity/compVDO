@@ -54,6 +54,12 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 2.7 `archive` mode warning dialog (R3.2) and `GREW` result badge (R7.2) — done 2026-09-20; archive dialog + banner, GREW shown as 'GREW — kept original' in the status column
 - [x] 2.8 Trial pass on the GUI against `qa-checklist.md` — done 2026-09-20; GUI-driven batch encoded 3 clips with 27 live progress events, Cancel stopped in 0.32s leaving nothing behind, clean shutdown
 
+## Phase 2b — User-requested work (2026-09-20)
+- [x] 2b.1 Read `dev_guide.md` and bring the GUI up to its norms — done 2026-09-20; §3.2 module contracts, §11 TX/RX/INFO/WARN/ERR console, §7.5 single `_set_busy`, §12 delete confirmation naming targets with Cancel defaulted, §11 completion names the output folder, §4 pinned requirements.txt
+- [x] 2b.2 Limit every process to n−2 cores — done 2026-09-20; `cpu.py` + `-threads` and x265 `pools=`, measured 215% at `--cores 2` and 750% at `--cores 10`; exposed as `--cores N` and shown in `caps`
+- [x] 2b.3 Well-pictured README — done 2026-09-20; screenshots in `docs/images/`, measured results up front, every link verified to resolve
+- [ ] 2b.4 Move docs into `docs/` — **waiting on the user**: `FSD.md` and `manual-task.md` must stay at the repo root or the fsd-workflow tooling stops working
+
 ## Phase 3 — Android  ← next, per the user's ordering
 - [ ] 3.1 Confirm Media3 `Transformer` HEVC + CRF-equivalent story; write the findings into `architecture.md`
 - [ ] 3.2 Compose M3 skeleton: permissions, MediaStore video query, sortable list

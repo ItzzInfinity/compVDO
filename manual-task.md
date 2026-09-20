@@ -41,6 +41,10 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
 
 ## Your issues & suggestions
 <!-- Add anything here and I will pick it up on the next pass. -->
+- [ ] Read `./dev_guide.md` and follow the norms
+  -  although this will not be multi tab application
+- [ ] for all processes Limit the CPU to `n-2` cores
+- [ ] Move the repos into /docs and create well pictured readme
 
 ## Completed
 <!-- Move finished items down here with the date. -->

@@ -10,6 +10,7 @@ import tempfile
 from pathlib import Path
 
 from . import __version__
+from .cpu import RESERVED_CORES, describe as describe_cores
 from .batch import plan_jobs, prepare, run_batch
 from .encode import CancelToken
 from .model import JobResult, JobSpec, MODES
@@ -119,6 +120,7 @@ def cmd_caps(args) -> int:
     print(f"ffprobe {caps.ffprobe}")
     print(f"encoders: {', '.join(sorted(caps.encoders)) or 'none of interest'}")
     print(f"vaapi device: {caps.vaapi_device or 'none'}")
+    print(f"cpu budget  : {describe_cores(None)}")
     if caps.vaapi_device is None and any(e.endswith(("_nvenc", "_qsv")) for e in caps.encoders):
         print("note: ffmpeg lists hardware encoders it cannot necessarily use;\n"
               "      `--hw auto` verifies before trusting them and falls back to software.")
@@ -220,10 +222,12 @@ def cmd_compress(args) -> int:
         print("\n  stopping after the current file...", flush=True), cancel.cancel()))
 
     rep = Reporter(quiet=args.quiet)
-    print(f"Compressing {len(specs)} file(s), mode={args.mode}, hw={args.hw}\n")
+    print(f"[INFO] compressing {len(specs)} file(s), mode={args.mode}, "
+          f"hw={args.hw}, using {describe_cores(args.cores)}\n")
     results = run_batch(specs, caps, on_progress=rep.progress, on_done=rep.done,
                         cancel=cancel, resume_in=folder if args.resume else None,
-                        purge=args.purge, deep_verify=not args.fast_verify)
+                        purge=args.purge, deep_verify=not args.fast_verify,
+                        cores=args.cores)
     return summarise(results)
 
 
@@ -249,7 +253,8 @@ def cmd_preview(args) -> int:
     spec = JobSpec(src=cut, dst=out, mode=args.mode, crf=args.crf, hw=args.hw)
     from .encode import run as encode_run
     rep = Reporter(quiet=args.quiet)
-    outcome = encode_run(spec, caps, on_progress=lambda f, s: rep.progress(1, 1, spec, f, s))
+    outcome = encode_run(spec, caps, cores=args.cores,
+                         on_progress=lambda f, s: rep.progress(1, 1, spec, f, s))
     print()
     if not outcome.ok:
         print("preview failed:\n" + outcome.stderr_tail)
@@ -335,6 +340,9 @@ def build_parser() -> argparse.ArgumentParser:
         sp.add_argument("--crf", type=int, help="override the ladder's rate factor")
         sp.add_argument("--hw", choices=("off", "auto"), default="off",
                         help="opt in to hardware encoding (faster, bigger files)")
+        sp.add_argument("--cores", type=int, metavar="N",
+                        help=f"cores to use (default: all but "
+                             f"{RESERVED_CORES}, so the machine stays usable)")
         sp.add_argument("-q", "--quiet", action="store_true")
         return sp
 
