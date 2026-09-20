@@ -140,7 +140,8 @@ the same fixed options the Android side offers, so both platforms behave alike.
 - [x] 5.2 `architecture.md` diagrams — done 2026-09-20; the ASCII shape replaced with Mermaid, plus a per-file decision flow and an Android queue diagram
 - [x] 5.3 Attribution — done 2026-09-20; commits now use the repository's own git identity with no co-author trailer
 - [x] 5.4 Licence — done 2026-09-20; Apache-2.0 (patent grant matters for HEVC; matches the AndroidX stack), with a NOTICE covering FFmpeg/x265 as a separate program, PySide6's LGPL bundling caveat and the codec-patent position. Verified the built wheel carries `License-Expression: Apache-2.0` and both files
-- [ ] 5.5 Rewrite the 18 pre-existing commits onto the repo's own identity and drop the co-author trailers — **needs the user to permit a history rewrite**
+- [x] 5.6 Release packaging — done 2026-09-20; `make package` builds the *current* committed version without bumping it, so a tag and the APK it describes cannot drift. Release signing reads a gitignored `keystore.properties`, falling back to an honest warning rather than the uninstallable unsigned APK `make release` used to emit (M5)
+- [x] 5.5 Rewrite the 18 pre-existing commits onto the repo's own identity and drop the co-author trailers — done 2026-09-20 with `git filter-repo`, folded into the same rewrite that purged `testVideos/` (1.1 GB → 960 KB)
 
 ## Phase 4 — Windows
 - [ ] 4.1 Path/encoding audit of the core (no POSIX assumptions, long paths, UTF-16 names)

@@ -29,7 +29,7 @@ NEXT_VERSION := $(MAJOR).$(MINOR).$(NEXT_PATCH)
 # Targets
 # ---------------------------------------------------------------------------
 
-.PHONY: build release clean version bump-version ensure-sdk
+.PHONY: build release package clean version bump-version ensure-sdk
 
 ## Show current version
 version:
@@ -70,6 +70,29 @@ release: bump-version ensure-sdk
 	@echo ""
 	@echo "✅ APK ready: $(BUILD_DIR)/compvdo-$(NEXT_VERSION)-release.apk"
 	@echo "   Version: $(NEXT_VERSION) (build $(NEXT_BUILD))"
+
+## Package the CURRENT committed version, without bumping it.
+## Use this for a tagged release: `make build` and `make release` bump first,
+## which means the APK they produce is a version ahead of the tree you tagged.
+package: ensure-sdk
+	@echo "=== Packaging compVDO v$(MAJOR).$(MINOR).$(PATCH) (build $(BUILD)) ==="
+	$(GRADLEW) assembleDebug --no-daemon
+	@mkdir -p $(BUILD_DIR)
+	@cp $(ANDROID_DIR)/app/build/outputs/apk/debug/app-debug.apk \
+		$(BUILD_DIR)/compvdo-$(MAJOR).$(MINOR).$(PATCH)-debug.apk
+	@if [ -f $(ANDROID_DIR)/keystore.properties ]; then \
+		echo "--- keystore found, also building a signed release APK ---"; \
+		$(GRADLEW) assembleRelease --no-daemon; \
+		cp $(ANDROID_DIR)/app/build/outputs/apk/release/app-release.apk \
+			$(BUILD_DIR)/compvdo-$(MAJOR).$(MINOR).$(PATCH).apk; \
+		echo "✅ Signed: $(BUILD_DIR)/compvdo-$(MAJOR).$(MINOR).$(PATCH).apk"; \
+	else \
+		echo ""; \
+		echo "⚠️  No android/keystore.properties — skipping the release APK,"; \
+		echo "    because an unsigned one cannot be installed. See manual-task.md M5."; \
+	fi
+	@echo ""
+	@echo "✅ Debug APK: $(BUILD_DIR)/compvdo-$(MAJOR).$(MINOR).$(PATCH)-debug.apk"
 
 ## Clean build artifacts
 clean:

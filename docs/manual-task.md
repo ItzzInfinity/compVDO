@@ -36,6 +36,33 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
   defects were found and fixed the same day; `qa-checklist.md` lists the four
   things worth re-checking on the next install.
 
+### M5 — A release keystore, if you want signed APKs  (unblocks a real release build)
+
+Until this exists, `make package` produces only the **debug** APK. It installs
+fine and is what you have been testing with, but it is signed with Android's
+public debug key: anyone can forge an update to it, and Play will not accept it.
+
+I cannot do this for you — the keystore *is* a credential, and its password
+must not pass through me or live in this transcript.
+
+- [ ] 1. Create the keystore. Keep it somewhere outside this repository:
+      ```
+      keytool -genkey -v -keystore ~/keys/compvdo-release.jks \
+        -keyalg RSA -keysize 4096 -validity 10000 -alias compvdo
+      ```
+- [ ] 2. Create `android/keystore.properties` (already gitignored):
+      ```
+      storeFile=/home/itzzinfinity/keys/compvdo-release.jks
+      storePassword=...
+      keyAlias=compvdo
+      keyPassword=...
+      ```
+- [ ] 3. **Back the .jks file up somewhere you will still have in five years.**
+      Lose it and you can never update the app for anyone who installed it —
+      Android identifies an app by its signing key, and there is no recovery.
+- [ ] 4. Re-run `make package`; it will then produce a signed
+      `compvdo-<version>.apk` alongside the debug one.
+
 ### M4 — Decisions I need from you  (unblocks nothing; changes defaults)
 - [x] 1. **The lossless question** — **decided 2026-09-20: keep visually-lossless
       HEVC as the default**, with true lossless remaining the opt-in `archive`

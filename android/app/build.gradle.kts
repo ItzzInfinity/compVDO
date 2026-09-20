@@ -19,6 +19,20 @@ val verMinor = versionProps.getProperty("minor", "1").toInt()
 val verPatch = versionProps.getProperty("patch", "0").toInt()
 val verBuild = versionProps.getProperty("buildNumber", "0").toInt()
 
+// Release signing, read from a file that is NOT in the repository.
+//
+// `assembleRelease` used to emit app-release-unsigned.apk, which Android will
+// not install — so the "release" build was the one nobody could actually use.
+// Create android/keystore.properties (gitignored) to sign properly; without it
+// the release build still works and is simply unsigned, with a warning, rather
+// than failing the build for someone who only wants a debug APK.
+val keystorePropsFile = rootProject.file("keystore.properties")
+val keystoreProps = Properties().apply {
+    if (keystorePropsFile.exists()) load(FileInputStream(keystorePropsFile))
+}
+val keystorePath = keystoreProps.getProperty("storeFile", "")
+val hasKeystore = keystorePath.isNotBlank() && rootProject.file(keystorePath).exists()
+
 android {
     namespace = "com.compvdo.app"
     compileSdk = 35
@@ -33,8 +47,27 @@ android {
         buildConfigField("int", "BUILD_NUMBER", "$verBuild")
     }
 
+    signingConfigs {
+        if (hasKeystore) {
+            create("release") {
+                storeFile = rootProject.file(keystorePath)
+                storePassword = keystoreProps.getProperty("storePassword")
+                keyAlias = keystoreProps.getProperty("keyAlias")
+                keyPassword = keystoreProps.getProperty("keyPassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (hasKeystore) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "compVDO: no android/keystore.properties — the release APK " +
+                    "will be UNSIGNED and cannot be installed. See manual-task.md M5."
+                )
+            }
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),

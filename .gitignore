@@ -27,3 +27,8 @@ android/app/local.properties
 build/
 .idea/
 android/.kotlin/
+
+# Signing credentials — never commit these
+android/keystore.properties
+*.jks
+*.keystore
