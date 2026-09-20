@@ -116,7 +116,7 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
       query of the Video collection could ever return it. Now queries
       `MediaStore.Files` per volume with a MIME/extension selection. **Needs
       device confirmation** — see `qa-checklist.md`.
-- [x] Implement Big tiles like viewers palettes to choose folder like my [`ALBUMs`](/reports/android/Screenshot_20260920_150833.jpg)
+- [x] Implement Big tiles like viewers palettes to choose folder like my `ALBUMs` (screenshot: `reports/android/Screenshot_20260920_150833.jpg`, untracked)
       — **Done 2026-09-20.** Three-column grid of folder tiles with a video-frame
       thumbnail, the folder name, count and size, matching your screenshot.
       Opening one drills into its videos; Back returns to the grid.

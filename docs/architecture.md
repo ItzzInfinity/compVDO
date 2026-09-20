@@ -2,19 +2,22 @@
 
 ## Shape
 
+```mermaid
+flowchart LR
+    CLI["cli.py<br/><i>argparse</i>"] --> CORE
+    GUI["gui/<br/><i>PySide6</i>"] --> CORE
+    CORE["compvdo core<br/>scan · plan · encode · verify"]
+    CORE -->|subprocess| FF["ffmpeg / ffprobe"]
+
+    ANDROID["Android<br/>Kotlin + Compose"] --> M3["Media3 Transformer<br/><i>MediaCodec, hardware</i>"]
+
+    RULES["requirements.md<br/><b>R1–R13</b>"]
+    RULES -.->|"the contract"| CORE
+    RULES -.->|"the same contract"| ANDROID
 ```
-                    ┌────────────────────────────┐
-  CLI (argparse) ──▶│                            │
-                    │        compvdo.core        │──▶ ffmpeg / ffprobe
-  GUI (PySide6)  ──▶│  scan · plan · run · verify│    (subprocess)
-                    └────────────────────────────┘
-                              ▲
-                              │ same rules, different code
-                    ┌─────────┴──────────┐
-                    │  Android (Kotlin)  │──▶ Media3 Transformer
-                    │  Compose + M3      │    (MediaCodec, hardware)
-                    └────────────────────┘
-```
+
+The two implementations share **no code**. `requirements.md` is what both are
+checked against — that is the whole reason the rules are numbered.
 
 The desktop core is a **library with no UI imports**. The CLI and the GUI are
 both thin callers. Anything a GUI needs (progress, cancel, logs) is exposed as
@@ -46,6 +49,31 @@ tests/
   test_e2e.py                               # generates a synthetic clip, real ffmpeg
 ffmpeg_bin/     # Windows only: bundled ffmpeg.exe (gitignored)
 ```
+
+## The flow, one file at a time
+
+```mermaid
+flowchart TD
+    A["source"] --> B["probe<br/>duration · size · rotation · codec"]
+    B --> C["rank<br/>bits-per-pixel → estimated saving"]
+    C --> D["plan.build()<br/><i>pure: inputs → argv</i>"]
+    D --> E["encode<br/>→ .compvdo-tmp-PID"]
+    E --> F{"exit 0?"}
+    F -->|no| X["unlink temp<br/><b>original untouched</b>"]
+    F -->|yes| G["os.replace()<br/><i>atomic, same filesystem</i>"]
+    G --> H["verify · R8<br/>duration · display size · full decode"]
+    H --> I{"passed?"}
+    I -->|no| J["keep both<br/>report why"]
+    I -->|yes| K{"smaller?"}
+    K -->|no| L["flag GREW<br/>keep the original"]
+    K -->|yes| M{"--delete-original?"}
+    M -->|no| N["done"]
+    M -->|yes| O["send to trash<br/>R2.3"]
+```
+
+Every path that keeps a file is deliberate: **R2** never loses an original,
+**R7.2** reports a bigger output rather than hiding it, and **R8** gates any
+delete behind three checks.
 
 ## The flow, end to end
 
@@ -155,6 +183,25 @@ a trash operation, which violates R2.3.
 - **Consequence, unchanged:** Android implements the rules in `requirements.md`,
   not this code. That document exists so two implementations can be checked
   against one spec — which is exactly how the 2026-09-20 validation was done.
+
+### Android: the queue
+
+```mermaid
+flowchart TD
+    HOME["HomeScreen<br/>pick videos"] -->|enqueue| Q
+    Q["CompressionQueue<br/><b>process-scoped object</b>"]
+    Q --> W{"drain loop"}
+    W -->|"one batch at a time"| B["BatchRunner"]
+    B --> T["TransformerEngine<br/><i>Media3, main looper</i>"]
+    B --> V["Verifier"]
+    Q -.->|"state flow"| SCR["CompressScreen<br/><i>a window, not an owner</i>"]
+    Q -.->|"state flow"| BAN["banner above the nav bar"]
+    Q -.->|"on finish"| DLG["CompletionDialog<br/><i>hosted above the nav graph</i>"]
+    DLG -->|"checkbox + Done"| TR["TrashRequest<br/>system confirmation"]
+```
+
+Closing `CompressScreen` changes nothing — the queue outlives it. That is the
+point of the next section.
 
 ### Android: where a batch lives
 

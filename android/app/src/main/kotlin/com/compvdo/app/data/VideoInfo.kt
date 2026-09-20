@@ -46,7 +46,9 @@ data class VideoInfo(
     val bpp: Double
         get() {
             if (width <= 0 || height <= 0 || duration <= 0) return 0.0
-            val fps = 30.0 // assume 30 fps when unknown; MediaStore doesn't expose fps
+            // Assumed, and wrong for every 60 fps clip — see BitsPerPixel.compute.
+            // Overstates bpp, and therefore the estimated saving, by 2x on those.
+            val fps = 30.0
             return bitrate.toDouble() / (width * height * fps)
         }
 

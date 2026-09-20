@@ -1,12 +1,25 @@
 [build-system]
-requires = ["setuptools>=61"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "compvdo"
 version = "0.1.0"
 description = "Local, offline video re-compression for phone footage"
+readme = "README.md"
 requires-python = ">=3.10"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{ name = "ItzzInfinity" }]
+keywords = ["video", "compression", "hevc", "ffmpeg", "offline"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Console",
+    "Intended Audience :: End Users/Desktop",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3",
+    "Topic :: Multimedia :: Video :: Conversion",
+]
 dependencies = []                      # core is stdlib-only, by design
 
 [project.optional-dependencies]

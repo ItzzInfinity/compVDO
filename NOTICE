@@ -1,0 +1,57 @@
+compVDO
+Copyright 2026 ItzzInfinity
+
+This product includes software developed as part of the compVDO project,
+licensed under the Apache License, Version 2.0 (see LICENSE).
+
+================================================================================
+Third-party components
+================================================================================
+
+compVDO's own source is Apache-2.0. It depends on, but does not include, the
+components below. Their licences apply to them, not to this project's code.
+
+Desktop (Python)
+----------------
+PySide6 ................ LGPL v3 (or commercial), The Qt Company
+    Imported at run time by the optional desktop GUI. The stdlib-only core and
+    the command line do not use it. Note for anyone producing a *bundled*
+    build (for example with PyInstaller): the LGPL requires that the user be
+    able to replace the Qt libraries, which a single-file executable does not
+    by itself satisfy.
+
+Send2Trash ............. BSD 3-Clause (optional, Windows only)
+
+FFmpeg / ffprobe ....... LGPL v2.1+ or GPL v2+, depending on the build
+    Invoked as a separate external program over a pipe. It is not linked
+    against, not bundled on Linux, and no FFmpeg source is included here.
+    x265, used by the common GPL builds, is GPL v2+.
+
+    If you distribute compVDO *together with* a GPL FFmpeg binary — the likely
+    shape of a Windows package — the terms of that build apply to the combined
+    distribution. Ship an LGPL build, or have users install FFmpeg themselves,
+    if that is not what you want.
+
+Android (Kotlin)
+----------------
+AndroidX, Jetpack Compose, Media3 ......... Apache-2.0, The Android Open
+                                            Source Project
+Kotlin and kotlinx.coroutines ............. Apache-2.0, JetBrains
+Coil (coil-compose, coil-video) ........... Apache-2.0, Coil Contributors
+
+    Video encoding on Android goes through the device's own MediaCodec via
+    Media3 Transformer. No codec implementation is bundled with the app.
+
+================================================================================
+A note on codec patents
+================================================================================
+
+HEVC / H.265, which compVDO produces by default, is covered by patents
+administered by several licensing pools. Apache-2.0's patent grant covers this
+project's own contributions; it cannot and does not grant rights to third-party
+codec patents.
+
+On Android the encoding is performed by the device's own licensed hardware
+encoder. On desktop it is performed by whichever FFmpeg the user installed.
+This project ships no codec. If you intend to distribute compVDO commercially
+or at scale, take your own advice on this — nothing here is legal advice.

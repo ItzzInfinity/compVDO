@@ -97,10 +97,10 @@ Full findings, with the evidence for each, are in `qa-checklist.md`.
 - [x] 3.12 Wire the foreground notification to real progress (`updateProgress` is never called) and request `POST_NOTIFICATIONS` — done 2026-09-20; the notification is driven from a companion-object `updateProgress` posting to the same id the service went foreground with — no binder needed, which is why the old instance method was unreachable. `POST_NOTIFICATIONS` is requested when a batch starts, and a refusal costs the notification, never the compression
 
 **Divergences and gaps:**
-- [ ] 3.13 Align the R10.3 ranking with `plan.py` or correct the comment claiming parity; stop defaulting fps to 30 (R10.4)
+- [ ] 3.13 Align the R10.3 ranking with `plan.py`; stop defaulting fps to 30 (R10.4) — **comment corrected 2026-09-20**: `BitsPerPixel` no longer claims the whole file matches `plan.py` (`compute` does, `rank` does not) and the 30 fps assumption is documented where it is made. The *behaviour* is unchanged and still overstates the saving on 60 fps clips; fixing it needs `CAPTURE_FRAMERATE`, which is API 30+.
 - [x] 3.14 Move MediaStore work off the main thread — done 2026-09-20; `OutputNaming` create/finalize/delete and `getFileSize` are now suspend on Dispatchers.IO (the scanner already was). Also fixed `nameExists()` querying VOLUME_EXTERNAL while the insert targeted VOLUME_EXTERNAL_PRIMARY
 - [ ] 3.15 Add a test source set — there is currently none
-- [ ] 3.16 R11 preview and R9.2 batch resume are both absent on Android
+- [ ] 3.16 R9.2 batch resume is absent on Android — an interrupted batch restarts from the beginning. (R11 preview from this item was delivered as 3b.5.)
 
 ## Phase 3b — Android UX, requested 2026-09-20
 
@@ -133,6 +133,14 @@ the same fixed options the Android side offers, so both platforms behave alike.
 - [x] 2c.1 `--audio-bitrate` / mode ladder in `plan.py`, floored at 128 kbps — done 2026-09-20; `AUDIO_MIN_KBPS = 128` as the one named floor, `resolve_audio()` split out as a pure function so the clamp can be reported before anything encodes
 - [x] 2c.2 CLI flag and GUI control, defaulting to "keep original audio" — done 2026-09-20; `--audio {keep,192k,160k,128k}` on compress and preview, a GUI combo persisted via settings.json, both defaulting to `keep`
 - [x] 2c.3 Tests covering the floor and the copy-by-default behaviour — done 2026-09-20; 22 new tests — the default path is a packet-identical stream copy (verified by MD5 of the coded audio, not just argv), each rung lands within ffprobe tolerance, 64k clamps to 128k and says so, silent sources stay silent
+
+## Phase 5 — Documentation
+
+- [x] 5.1 README: link every file, add diagrams — done 2026-09-20; two Mermaid diagrams (system shape, per-file flow), tables linking all 19 Python modules, 8 test files, 36 Kotlin files and the 8 documents; every link verified to resolve and every diagram validated against the real Mermaid parser
+- [x] 5.2 `architecture.md` diagrams — done 2026-09-20; the ASCII shape replaced with Mermaid, plus a per-file decision flow and an Android queue diagram
+- [x] 5.3 Attribution — done 2026-09-20; commits now use the repository's own git identity with no co-author trailer
+- [x] 5.4 Licence — done 2026-09-20; Apache-2.0 (patent grant matters for HEVC; matches the AndroidX stack), with a NOTICE covering FFmpeg/x265 as a separate program, PySide6's LGPL bundling caveat and the codec-patent position. Verified the built wheel carries `License-Expression: Apache-2.0` and both files
+- [ ] 5.5 Rewrite the 18 pre-existing commits onto the repo's own identity and drop the co-author trailers — **needs the user to permit a history rewrite**
 
 ## Phase 4 — Windows
 - [ ] 4.1 Path/encoding audit of the core (no POSIX assumptions, long paths, UTF-16 names)
