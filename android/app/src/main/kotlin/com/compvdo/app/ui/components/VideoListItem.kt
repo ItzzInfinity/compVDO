@@ -19,15 +19,31 @@ import coil.compose.AsyncImage
 import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import com.compvdo.app.data.VideoInfo
-import com.compvdo.app.util.VideoPlayback
 import com.compvdo.app.util.FileSize
+import com.compvdo.app.util.VideoPlayback
 
 /**
- * A card showing one video's info: thumbnail, name, size, duration, estimated
- * saving.
+ * One video in the list view.
  *
- * The **entire card** toggles selection (3b.8c). Previously only the checkbox
- * responded, so tapping the filename — the obvious target — did nothing.
+ * Three things here are deliberate, all from seeing this on a real device:
+ *
+ * 1. **The metadata is one non-wrapping line.** It was three separate `Text`s
+ *    in a `Row`; once the duration ran long ("7m 8s") the resolution was
+ *    squeezed into a sliver and wrapped character by character, rendering as
+ *    "192 / 0×10 / 80" down three lines and making every row a different
+ *    height. One string, `maxLines = 1`, `softWrap = false`.
+ *
+ * 2. **The thumbnail is a fixed landscape frame with `ContentScale.Fit`.**
+ *    Cropping into a square threw away the sides of every 16:9 clip and made a
+ *    portrait video look identical in shape to a landscape one. Fit
+ *    letterboxes, so the frame shows the real orientation at a glance while the
+ *    text still starts at the same x on every row.
+ *
+ * 3. **The estimated saving moved into the text column.** As a trailing
+ *    `SuggestionChip` it competed with the filename for width, which is what
+ *    left the name permanently truncated to "video_20260701_08…".
+ *
+ * The **whole card** toggles selection; previously only the checkbox did.
  */
 @Composable
 fun VideoListItem(
@@ -36,10 +52,12 @@ fun VideoListItem(
     onToggleSelection: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val context = LocalContext.current
+
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 12.dp, vertical = 4.dp)
             .clickable { onToggleSelection(!isSelected) },
         colors = CardDefaults.cardColors(
             containerColor = if (isSelected) {
@@ -52,83 +70,74 @@ fun VideoListItem(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp),
+                .padding(horizontal = 6.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Checkbox(
                 checked = isSelected,
-                // The row owns the gesture; the box is an indicator that still
-                // works if someone aims at it precisely.
+                // The row owns the gesture; the box stays an indicator that
+                // still works if someone aims at it precisely.
                 onCheckedChange = onToggleSelection,
             )
 
-            Spacer(Modifier.width(4.dp))
-
-            // Small thumbnail — the "list view with a small thumbnail" mode.
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(video.uri)
-                    .decoderFactory(VideoFrameDecoder.Factory())
-                    .crossfade(true)
-                    .build(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+            Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .clip(RoundedCornerShape(8.dp))
+                    .size(width = 64.dp, height = 44.dp)
+                    .clip(RoundedCornerShape(6.dp))
                     .background(MaterialTheme.colorScheme.surface),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                AsyncImage(
+                    model = ImageRequest.Builder(context)
+                        .data(video.uri)
+                        .decoderFactory(VideoFrameDecoder.Factory())
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = null,
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(10.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.displayName,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(2.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    text = listOf(
+                        video.formattedSize,
+                        FileSize.formatDuration(video.duration),
+                        FileSize.formatResolution(video.width, video.height),
+                    ).filter { it.isNotBlank() }.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (video.estimatedSaving > 0) {
                     Text(
-                        text = video.formattedSize,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = FileSize.formatDuration(video.duration),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        text = "${video.width}×${video.height}",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        text = "~${FileSize.format(video.estimatedSaving)} to save",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
 
-            Spacer(Modifier.width(8.dp))
-
-            // 3b.5 — preview in whatever player the user already has.
-            val context = LocalContext.current
+            // Preview in whatever player the user already has (3b.5).
             IconButton(onClick = { VideoPlayback.open(context, video.uri, video.mimeType) }) {
                 Icon(
                     Icons.Default.PlayCircleOutline,
                     contentDescription = "Preview ${video.displayName}",
-                )
-            }
-
-            // Estimated saving badge
-            if (video.estimatedSaving > 0) {
-                SuggestionChip(
-                    onClick = {},
-                    label = {
-                        Text(
-                            text = "~${FileSize.format(video.estimatedSaving)}",
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    },
                 )
             }
         }

@@ -175,6 +175,12 @@ object MediaScanner {
             cols += MediaStore.Video.Media.WIDTH
             cols += MediaStore.Video.Media.HEIGHT
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                // WIDTH/HEIGHT are the CODED dimensions. A phone records
+                // portrait video as 1920x1080 plus a 90 degree rotation flag,
+                // so without this column every portrait clip in the library
+                // reports itself as landscape — which is exactly what the list
+                // showed on device: 1920x1080 on every single row.
+                cols += MediaStore.MediaColumns.ORIENTATION
                 cols += MediaStore.Files.FileColumns.RELATIVE_PATH
                 cols += MediaStore.Files.FileColumns.BUCKET_ID
                 cols += MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME
@@ -249,6 +255,7 @@ object MediaScanner {
             val durCol = c.getColumnIndex(MediaStore.Video.Media.DURATION)
             val wCol = c.getColumnIndex(MediaStore.Video.Media.WIDTH)
             val hCol = c.getColumnIndex(MediaStore.Video.Media.HEIGHT)
+            val orientationCol = c.getColumnIndex(MediaStore.MediaColumns.ORIENTATION)
             val relCol = c.getColumnIndex(MediaStore.Files.FileColumns.RELATIVE_PATH)
             val bucketIdCol = c.getColumnIndex(MediaStore.Files.FileColumns.BUCKET_ID)
             val bucketNameCol = c.getColumnIndex(MediaStore.Files.FileColumns.BUCKET_DISPLAY_NAME)
@@ -274,8 +281,14 @@ object MediaScanner {
                 ) continue
 
                 val duration = if (durCol >= 0) c.getLong(durCol) else 0L
-                val width = if (wCol >= 0) c.getInt(wCol) else 0
-                val height = if (hCol >= 0) c.getInt(hCol) else 0
+                val codedWidth = if (wCol >= 0) c.getInt(wCol) else 0
+                val codedHeight = if (hCol >= 0) c.getInt(hCol) else 0
+                // Report DISPLAY dimensions, the same way the desktop build
+                // does (R5.1, R8.2): a quarter turn swaps the two.
+                val rotation = if (orientationCol >= 0) c.getInt(orientationCol) else 0
+                val quarterTurned = rotation == 90 || rotation == 270
+                val width = if (quarterTurned) codedHeight else codedWidth
+                val height = if (quarterTurned) codedWidth else codedHeight
                 val dateMod = if (dateCol >= 0) c.getLong(dateCol) else 0L
                 var bitrate = if (bitrateCol >= 0) c.getLong(bitrateCol) else 0L
                 if (bitrate <= 0 && duration > 0) bitrate = (size * 8 * 1000) / duration

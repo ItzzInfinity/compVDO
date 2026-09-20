@@ -108,11 +108,33 @@ First run on real hardware, 303 videos / 34.54 GB across 16 folders.
       compression, because Home's `LaunchedEffect` re-runs on every re-entry.
       Now `ensureScanned()`; Refresh remains explicit.
 
+**List-view layout, from screenshots at 16:11 — fixed:**
+- [x] `1920x1080` wrapped across three and four lines ("192 / 0x10 / 80"),
+      making every row a different height. Three separate `Text`s in a `Row`
+      meant the resolution got whatever width was left after a long duration.
+      Now one string with `maxLines = 1`, `softWrap = false`, so it cannot wrap.
+- [x] Resolution shown as a rung ("1080p", "4K") rather than "1920x1080" —
+      eleven characters that cannot be shortened by an ellipsis without becoming
+      nonsense, and the thing that was overflowing.
+- [x] **Every row read 1920x1080, including portrait clips.** MediaStore's
+      WIDTH/HEIGHT are the *coded* dimensions; a phone records portrait as
+      1920x1080 plus a rotation flag. The scanner now reads
+      `MediaColumns.ORIENTATION` and swaps the pair on a quarter turn, so it
+      reports display dimensions like the desktop build does (R5.1, R8.2).
+- [x] Square thumbnails cropped the sides off 16:9 clips and made portrait and
+      landscape look identically shaped. Now a 64x44 frame with
+      `ContentScale.Fit`, so the letterboxing shows the real orientation while
+      the text still starts at the same x on every row.
+- [x] Filenames were permanently truncated because a trailing saving chip
+      competed for width; the saving moved into the text column.
+
 **Still to check on device after these fixes:**
 - [ ] A `Download` video now compresses, and the note naming `Movies/compVDO` appears
 - [ ] The compressed output opens in an external player
 - [ ] Home no longer rescans on tab switches
 - [ ] The Log tab's Save button writes `Download/compvdo-log-<timestamp>.txt`
+- [ ] List rows are all the same height and nothing wraps
+- [ ] Portrait clips now report portrait dimensions and show a portrait thumbnail
 
 ## Android code validation — 2026-09-20
 
