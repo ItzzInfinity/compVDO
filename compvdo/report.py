@@ -118,8 +118,55 @@ def _verdict(info: MediaInfo, saving: int, mode: str) -> str:
             f"Run `compvdo preview \"{info.path.name}\"` for a real number.")
 
 
+def find_compressed(src: Path, search_dirs: list[Path]) -> Path | None:
+    """The `<stem>_compressed.*` output for a source, wherever it ended up.
+
+    compvdo writes beside the original by design (R1.1), but the file may have
+    been moved afterwards, so the search takes a list of directories.
+    """
+    for folder in search_dirs:
+        if not folder.is_dir():
+            continue
+        for candidate in sorted(folder.glob(f"{src.stem}_compressed.*")):
+            if candidate.is_file():
+                return candidate
+    return None
+
+
+def _comparison(before: MediaInfo, after: MediaInfo) -> list[str]:
+    """Before/after for one file, including what did NOT change."""
+    delta = before.size - after.size
+    pct = delta / before.size * 100 if before.size else 0.0
+    rows = [
+        ("Size", f"{_human(before.size)} → **{_human(after.size)}** "
+                 f"({after.size / before.size * 100:.1f}% of the original)"),
+        ("Saved", f"**{_human(delta)}** ({pct:.1f}%)"),
+        ("Video codec", f"{before.vcodec.upper()} → {after.vcodec.upper()}"),
+        ("Bitrate", f"{before.vbitrate / 1e6:.2f} → {after.vbitrate / 1e6:.2f} Mb/s"),
+        ("Bits per pixel", f"{before.bpp:.4f} → {after.bpp:.4f}"),
+        ("Duration", f"{before.duration:.3f} s → {after.duration:.3f} s "
+                     f"(Δ {abs(after.duration - before.duration):.3f} s)"),
+        ("Displayed size", f"{before.display_width}×{before.display_height} → "
+                           f"{after.display_width}×{after.display_height}"
+                           + ("  ✅ unchanged"
+                              if (before.display_width, before.display_height)
+                              == (after.display_width, after.display_height)
+                              else "  ⚠️ CHANGED")),
+        ("Coded size", f"{before.width}×{before.height} → {after.width}×{after.height}"),
+        ("Rotation", f"{before.rotation}° → {after.rotation}°"
+                     + ("  (baked into the pixels by ffmpeg's -autorotate)"
+                        if before.rotation and not after.rotation else "")),
+        ("Audio", f"{before.acodec or 'none'} → {after.acodec or 'none'}"
+                  + ("  ✅ copied untouched" if before.acodec == after.acodec else "")),
+        ("Frame rate", f"{before.fps:.3f} → {after.fps:.3f} fps"),
+        ("Output file", f"`{after.path}`"),
+    ]
+    return _table(rows)
+
+
 def build_markdown(paths: list[Path], caps: Caps, *, mode: str = "medium",
-                   title: str = "Video metadata report") -> str:
+                   title: str = "Video metadata report",
+                   compare_dirs: list[Path] | None = None) -> str:
     lines: list[str] = [
         f"# {title}", "",
         f"Generated {datetime.now(timezone.utc).astimezone():%Y-%m-%d %H:%M %Z} "
@@ -130,12 +177,19 @@ def build_markdown(paths: list[Path], caps: Caps, *, mode: str = "medium",
 
     good: list[tuple[Path, MediaInfo, dict, int]] = []
     bad: list[tuple[Path, str]] = []
+    after_of: dict[Path, MediaInfo] = {}
     for p in paths:
         try:
             info = probe_info(p, caps)
             good.append((p, info, raw_probe(p, caps), estimate(info, mode)[1]))
         except (ProbeError, OSError) as e:
             bad.append((p, str(e)))
+            continue
+        if compare_dirs and (out := find_compressed(p, compare_dirs)):
+            try:
+                after_of[p] = probe_info(out, caps)
+            except (ProbeError, OSError):
+                pass
 
     # --- library overview -------------------------------------------------
     lines += ["## At a glance", ""]
@@ -160,6 +214,28 @@ def build_markdown(paths: list[Path], caps: Caps, *, mode: str = "medium",
                   "see how busy the picture is. Use the figures to decide "
                   "*which* files to do first, and `compvdo preview <file>` to "
                   "find out what one will actually save.", ""]
+    if after_of:
+        lines += ["## Results — what compression actually did", "",
+                  "| File | Before | After | Saved | % of original | Playable |",
+                  "|---|---|---|---|---|---|"]
+        tb = ta = 0
+        for p, i, _, _ in good:
+            a = after_of.get(p)
+            if not a:
+                continue
+            tb += i.size
+            ta += a.size
+            same = ((i.display_width, i.display_height)
+                    == (a.display_width, a.display_height)
+                    and abs(a.duration - i.duration) < max(0.1, i.duration * 0.005))
+            lines.append(
+                f"| `{p.name}` | {_human(i.size)} | {_human(a.size)} | "
+                f"{_human(i.size - a.size)} | **{a.size / i.size * 100:.0f}%** | "
+                f"{'✅ verified' if same else '⚠️ check'} |")
+        lines += ["", f"**Total: {_human(tb)} → {_human(ta)}, "
+                      f"{_human(tb - ta)} saved ({(tb - ta) / tb * 100:.1f}%).** "
+                      f"These are measurements, not estimates.", ""]
+
     if bad:
         lines += ["Unreadable:", ""]
         lines += [f"- `{p.name}` — {why}" for p, why in bad]
@@ -169,9 +245,13 @@ def build_markdown(paths: list[Path], caps: Caps, *, mode: str = "medium",
     for p, i, raw, saving in good:
         fmt = raw.get("format", {})
         streams = raw.get("streams", [])
-        lines += ["---", "", f"## `{p.name}`", "", _verdict(i, saving, mode), ""]
+        lines += ["---", "", f"## `{p.name}`", ""]
+        if (after := after_of.get(p)) is not None:
+            lines += ["### Before and after", ""] + _comparison(i, after)
+        else:
+            lines += [_verdict(i, saving, mode), ""]
 
-        lines += ["### Summary", ""]
+        lines += ["### Summary (original)", ""]
         lines += _table([
             ("Path", f"`{p}`"),
             ("Size", f"{_human(i.size)} ({i.size:,} bytes)"),

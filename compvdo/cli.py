@@ -280,8 +280,11 @@ def cmd_report(args) -> int:
         return EXIT_OK
 
     print(f"Reading metadata from {len(paths)} file(s)...")
-    text = build_markdown(paths, caps, mode=args.mode,
-                          title=args.title or f"Video metadata report — {root.name or root}")
+    compare_dirs = [Path(d) for d in (args.compare or [])]
+    text = build_markdown(
+        paths, caps, mode=args.mode,
+        title=args.title or f"Video metadata report — {root.name or root}",
+        compare_dirs=compare_dirs or None)
     out = Path(args.output)
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(text, encoding="utf-8")
@@ -375,6 +378,9 @@ def build_parser() -> argparse.ArgumentParser:
     r.add_argument("path")
     r.add_argument("-o", "--output", default="report.md")
     r.add_argument("--title")
+    r.add_argument("--compare", action="append", metavar="DIR",
+                   help="folder holding the _compressed outputs; adds before/after "
+                        "measurements. Repeatable.")
     r.add_argument("-m", "--mode", choices=MODES, default="medium",
                    help="the mode the savings estimates assume")
     r.add_argument("--no-recursive", action="store_true")

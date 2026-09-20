@@ -179,10 +179,39 @@ def _stop(proc: subprocess.Popen) -> None:
         proc.wait(timeout=_KILL_GRACE)
 
 
+def _pid_of_temp(path: Path) -> int | None:
+    """The owning process id encoded in a temp filename, if it parses."""
+    stem = path.name[len(_TMP_PREFIX):].split(".")[0]
+    return int(stem) if stem.isdigit() else None
+
+
+def _process_alive(pid: int) -> bool:
+    """True if a process with this id exists (any owner)."""
+    if os.name == "nt":                         # no /proc; assume alive
+        return True                             # and let the owner clean up
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True                             # exists, just not ours
+    return True
+
+
 def cleanup_stale_temps(folder: Path) -> int:
-    """Remove temp files left by a crashed run. Returns how many went."""
+    """Remove temp files left by a *crashed* run. Returns how many went.
+
+    Only touches temps whose owning process is gone. Deleting indiscriminately
+    destroys in-flight encodes: a second compvdo instance, or the GUI merely
+    scanning the same folder, used to unlink the temp file of a running job.
+    ffmpeg keeps writing happily to the unlinked inode, so the encode appears
+    to succeed and then the output simply is not there.
+    """
     n = 0
     for f in folder.glob(f"{_TMP_PREFIX}*"):
+        pid = _pid_of_temp(f)
+        if pid is not None and pid != os.getpid() and _process_alive(pid):
+            continue                            # someone is still writing it
         try:
             f.unlink()
             n += 1

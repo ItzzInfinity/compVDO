@@ -86,7 +86,11 @@ document, not against the Python source.
   0.08–0.15 bpp; HEVC at CRF 24 lands near 0.04. Files far above the target bpp
   rank highest. Already-HEVC, already-low-bpp, and very short clips rank lowest.
 - **R10.4** Rank is an *estimate* and is labelled as such — never presented as a
-  promise.
+  promise. **Measured 2026-09-20:** three real phone clips at an identical
+  0.086 bpp compressed to 77 %, 64 % and 29 % of their original size. The model
+  is roughly unbiased but has large per-file error, because bits-per-pixel
+  cannot see content complexity. Anywhere a figure is shown to a person it is
+  shown as a range, with `preview` offered as the way to get a real number.
 
 ## 11. Preview
 - **R11.1** "Preview before saving" is implemented as **encode a short segment**
@@ -94,6 +98,16 @@ document, not against the Python source.
   and sample side by side. Encoding the whole file to then discard it would cost
   the user the entire runtime twice.
 - **R11.2** Preview never writes into the source folder; it uses a temp dir.
+
+## 13. Metadata reports (`compvdo report`)
+- **R13.1** The report includes **every** field ffprobe returns, verbatim, plus
+  the complete JSON in a collapsed block. Nothing is filtered out; that is the
+  point of it.
+- **R13.2** Each file gets a plain-language verdict above the tables.
+- **R13.3** With `--compare`, the report shows measured before/after figures and
+  labels them as measurements, distinct from estimates.
+- **R13.4** Table cell values escape `|` and collapse newlines, so a display
+  matrix cannot break the document.
 
 ## 12. UI (GUI front-ends)
 - **R12.1** The UI never blocks; encoding runs off the UI thread.

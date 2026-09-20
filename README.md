@@ -58,6 +58,10 @@ compvdo compress ~/Videos --delete-original
 
 # Check an output against its source yourself
 compvdo verify clip.mp4 clip_compressed.mp4
+
+# Full metadata for a folder, plus a per-file verdict, as one markdown document
+compvdo report ~/Videos -o report.md
+compvdo report ~/Videos --compare ~/Videos/output -o report.md   # before/after
 ```
 
 Output always lands **beside the original** as `<name>_compressed.<ext>`.
@@ -72,6 +76,22 @@ Output always lands **beside the original** as `<name>_compressed.<ext>`.
 | `archive` | **grows the file** | bit-exact masters |
 
 `--crf N` overrides the ladder if you know what you want.
+
+### How much will it actually save?
+
+Less predictably than you would like. Measured on four real phone clips, three
+of them recorded at an identical 0.086 bits per pixel came out at **77 %, 64 %
+and 29 %** of their original size. Bits-per-pixel arithmetic cannot see how busy
+the picture is, so `scan` gives you a *ranking*, not a promise.
+
+Use `compvdo preview <file>` when you want a real number: it encodes a
+ten-second sample at your chosen settings, in a temp folder, in well under a
+minute.
+
+Also worth knowing: modern phones already record **HEVC**, not H.264. A HEVC
+source re-encoded to HEVC gains much less than the H.264 case everyone quotes,
+and costs a generation of quality. `scan` accounts for this and ranks such
+files lower.
 
 ## Safety
 

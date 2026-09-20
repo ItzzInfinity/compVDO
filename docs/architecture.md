@@ -34,6 +34,7 @@ compvdo/
   batch.py      # queue, resume state, per-file isolation
   trash.py      # platform-correct delete (R2.3)
   settings.py   # load/save user defaults + capability cache
+  report.py     # full-metadata markdown reports, incl. before/after
   cli.py        # argparse front-end
   gui/
     app.py      # QApplication bootstrap, theme
@@ -104,6 +105,20 @@ exist on Android** and the UI must not offer it.
 | Linux | system package; hard requirement, checked at start-up with an actionable message | PySide6 | `gio trash`, fallback `~/.local/share/Trash` spec |
 | Windows | bundled `ffmpeg.exe` beside the exe, found via `sys._MEIPASS` | PySide6, same code | `SHFileOperation` via `send2trash` if present, else confirm-and-unlink |
 | Android | none (Media3) | Compose M3 | `MediaStore.createTrashRequest` |
+
+## Temp files belong to a process
+
+`.compvdo-tmp-<pid><ext>` encodes the owning process id, and
+`cleanup_stale_temps()` only removes a temp whose process is gone. This is not
+tidiness — deleting indiscriminately destroys a running encode. ffmpeg holds an
+open descriptor, so it keeps writing happily to the unlinked inode, reports
+success, and the output simply is not there. Observed in this project when a
+second instance was started against the same folder.
+
+Note the remaining gap: two instances told to compress the *same file* will
+each write their own temp and race to `os.replace()` the same destination. The
+temp-file fix removes the destructive case; a folder lock would remove the race
+and is not implemented.
 
 ## Error policy
 - ffmpeg not found → one clear message naming the install command, exit 2.
