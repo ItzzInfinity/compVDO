@@ -37,6 +37,9 @@ Roadmap items waiting on one of these are marked `[M]` and name the number.
       HEVC as the default**, with true lossless remaining the opt-in `archive`
       mode. No code change needed; this is what ships.
 - [ ] 2. Anything here you want dropped from v1 to ship sooner.
+- [ ] 3. **Is iOS on the roadmap?** It is the one thing that would change the
+      Android stack decision from Kotlin to Flutter — see the rationale in
+      `architecture.md`. Answer before Phase 3 gets far.
 
 ## Your issues & suggestions
 <!-- Add anything here and I will pick it up on the next pass. -->

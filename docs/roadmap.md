@@ -62,6 +62,7 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 2b.5 M4.1 decided — done 2026-09-20; visually-lossless HEVC stays the default, `archive` stays opt-in
 
 ## Phase 3 — Android  ← next, per the user's ordering
+- [x] 3.0 Decide the Android stack: Kotlin/Compose vs Dart/Flutter — done 2026-09-20; Kotlin, because Flutter still needs a platform channel to Media3 and ffmpeg-kit's retirement removed its one advantage; rationale and the iOS condition that would reverse it are in `architecture.md`
 - [ ] 3.1 Confirm Media3 `Transformer` HEVC + CRF-equivalent story; write the findings into `architecture.md`
 - [ ] 3.2 Compose M3 skeleton: permissions, MediaStore video query, sortable list
 - [ ] 3.3 Transformer job runner with progress + cancel, foreground service

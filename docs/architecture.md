@@ -98,6 +98,52 @@ retired. Media3 `Transformer` gives hardware HEVC with no native packaging, no
 GPL, and no 200 MB APK — at the cost of no FFV1, so **`archive` mode does not
 exist on Android** and the UI must not offer it.
 
+## Why Android is Kotlin, not Flutter (decided 2026-09-20)
+
+The question asked was whether a Dart/Flutter stack would be better for
+cross-OS builds. It would not, for this application, for one reason:
+
+**The UI is not the hard part. The encoder is, and Flutter does not help with
+the encoder.**
+
+On Android the encode must go through Media3 `Transformer` (an AndroidX
+library, Kotlin/Java-first) or a bundled ffmpeg. From Flutter, both need a
+platform channel — so the Kotlin gets written anyway, plus Dart, plus channel
+glue, plus marshalling progress and cancel across an `EventChannel`. Flutter
+adds a layer without removing the difficulty.
+
+The ffmpeg escape hatch that made Flutter attractive for video work is gone:
+`ffmpeg_kit_flutter` was the standard answer, and ffmpeg-kit was retired in
+January 2025 with its prebuilt binaries withdrawn. Community forks are
+unmaintained, and Play's 16 KB page-size requirement for apps targeting
+Android 15+ breaks stale prebuilt `.so` bundles. *(Re-verify before relying on
+this; it is the kind of fact that moves.)*
+
+| Concern | Kotlin + Compose | Flutter |
+|---|---|---|
+| Media3 `Transformer` | direct API call | platform channel, written in Kotlin |
+| MediaStore, scoped storage, trash intent | direct | a channel each |
+| Foreground service for long encodes | native | plugin or own channel; keeping an isolate alive while backgrounded is awkward |
+| Progress + cancel | Kotlin `Flow` | `Flow` → `EventChannel` → Dart `Stream` |
+| Desktop | not needed — PySide6 is done and trialled | would mean rewriting a working GUI |
+| iOS | a second native app | **one codebase — Flutter's real win** |
+
+**What would flip this decision: iOS.** If an iPhone version is wanted, Flutter
+avoids a whole second native application rather than just a UI layer, and the
+calculation changes. It is not currently on the roadmap.
+
+**Rejected middle path: Kotlin Multiplatform + Compose Multiplatform.** It
+shares the *logic* — the quality ladder, the bits-per-pixel ranking, the
+verification rules — across Android and desktop while keeping direct native
+Media3 access. That is a better code-sharing story than Flutter for this app.
+It is rejected for now only because it means reimplementing the Python core in
+Kotlin, and that core is stdlib-only, tested and working. Revisit if a second
+native platform ever needs the same logic.
+
+**Consequence, unchanged:** Android implements the rules in
+`requirements.md`, not this code. That document exists so two implementations
+can be checked against one spec.
+
 ## Platform notes
 
 | | ffmpeg source | GUI | Delete |
