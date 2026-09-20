@@ -173,7 +173,7 @@ Do not put any encoding logic in the GUI layer — it calls `batch.run_batch()`.
 - none
 
 ### Next step (exact)
-Fill `../FSD.md` from the user's brief, then stop and ask for approval before
+Fill `FSD.md` from the user's brief, then stop and ask for approval before
 writing any code.
 
 ### Assumptions

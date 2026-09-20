@@ -168,19 +168,19 @@ Enforced, not aspirational. Each maps to a numbered rule in
 
 ## Project layout
 
-Spec-first. `FSD.md` is the contract; `docs/roadmap.md` is the only source of
+Spec-first. `docs/FSD.md` is the contract; `docs/roadmap.md` is the only source of
 truth for what is done; `docs/checkpoints.md` records each session's findings.
 
 | Document | What it is |
 |---|---|
-| [`FSD.md`](FSD.md) | the spec: purpose, stack with rejected alternatives, acceptance criteria |
+| [`FSD.md`](docs/FSD.md) | the spec: purpose, stack with rejected alternatives, acceptance criteria |
 | [`docs/requirements.md`](docs/requirements.md) | numbered, testable product rules R1–R13 |
 | [`docs/architecture.md`](docs/architecture.md) | module map, the flow, and why each decision went the way it did |
 | [`docs/data-model.md`](docs/data-model.md) | the five dataclasses and the two files on disk |
 | [`docs/roadmap.md`](docs/roadmap.md) | status, one line per task |
 | [`docs/checkpoints.md`](docs/checkpoints.md) | resume notes and every gotcha found so far |
 | [`docs/qa-checklist.md`](docs/qa-checklist.md) | manual and automated test checklist, with measured results |
-| [`manual-task.md`](manual-task.md) | things only you can do |
+| [`manual-task.md`](docs/manual-task.md) | things only you can do |
 
 ```
 compvdo/
