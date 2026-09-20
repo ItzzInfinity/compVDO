@@ -79,7 +79,102 @@ What this trial taught us:
 - [ ] Non-ASCII filenames and paths over 260 chars
 - [ ] Delete goes to the Recycle Bin
 
+## Android code validation — 2026-09-20
+
+Build: `./gradlew assembleDebug` **succeeds** (JDK 17, compileSdk 35, minSdk 26,
+Media3 1.5.1) → `app/build/outputs/apk/debug/app-debug.apk`, 21 MB.
+~2,150 lines of Kotlin across 24 files. **Zero tests** (no `src/test`, no
+`src/androidTest`).
+
+Threading was checked and is correct: `viewModelScope.launch` runs on
+`Dispatchers.Main.immediate`, so `Transformer` is built, started and polled on
+the main looper, which is what Media3 requires.
+
+### 🔴 Blocking — data loss
+
+- [ ] **R2.3 is violated: "trash" is a permanent delete.** `BatchRunner.trashOriginal()`
+      carries the comment *"Uses MediaStore.createTrashRequest on API 30+"* and then
+      calls `contentResolver.delete(uri, null, null)`. `createTrashRequest` appears
+      nowhere in the tree. The original is destroyed, not trashed, and nothing can
+      recover it. On the desktop this same rule is what sends files to a recoverable
+      trash and reports the exact path.
+- [ ] **The security exception that asks the user for permission is swallowed.**
+      On API 30+, deleting media the app does not own raises
+      `RecoverableSecurityException`, whose `IntentSender` is how Android prompts
+      the user. `catch (_: Exception) { false }` discards it, so the delete either
+      destroys the file or silently reports "not deleted" — never the documented
+      behaviour.
+- [ ] **No confirmation before deleting originals.** dev_guide.md §12 requires a
+      dialog naming the targets, stating the count, and defaulting to the safe
+      button. The setting is a bare toggle in `SettingsScreen`. This is the same
+      gap that §12 caught on the desktop GUI.
+- [ ] **R8.3 does not verify playability, but gates the delete as though it does.**
+      `Verifier` reads the track *format header* and then sets `playable = true`
+      with the comment "if we got this far with no exception, it's playable".
+      A truncated file has a valid header. The desktop runs a full decode pass.
+      A weak gate plus a permanent delete is how footage gets lost.
+
+### 🟠 Significant
+
+- [ ] **Cancel does not stop the current file (R12.2).** `CompressViewModel.cancel()`
+      sets a plain `Boolean`, which `BatchRunner` only checks *between* files.
+      Nothing cancels the running `Transformer`. The `invokeOnCancellation {
+      transformer.cancel() }` hook exists but never fires, because the coroutine is
+      never cancelled. Pressing Cancel during a ten-minute encode does nothing for
+      ten minutes. Desktop stops in 0.32 s.
+- [ ] **Output opened `"w"`, but MP4 muxing needs to seek** back to write the `moov`
+      atom. `openFileDescriptor(outputUri, "w")` should be `"rw"`. Likely a runtime
+      export failure on device — the first thing to watch for in the trial.
+- [ ] **The foreground notification never updates.** `CompressionService.updateProgress()`
+      is never called from anywhere; the service is unbound, so the ViewModel cannot
+      reach the instance. The notification stays at "Compressing… 0%" for the whole
+      batch. (dev_guide.md §17: a method that exists and is never invoked.)
+- [ ] **`POST_NOTIFICATIONS` is declared but never requested.** Only
+      `READ_MEDIA_VIDEO` is requested in `HomeScreen`. On API 33+ the foreground
+      notification will not appear.
+
+### 🟡 Divergences from the shared spec
+
+- [ ] **R10.3 ranking is not the same arithmetic**, though `BitsPerPixel` says
+      "Same formula as the Python implementation". `compute()` matches; `rank()`
+      does not — Python sorts by estimated bytes saved, Kotlin buckets into 0–4 by
+      threshold. Either align it or correct the comment.
+- [ ] **`fps` defaults to 30.0 when unknown.** The desktop deliberately returns
+      bpp 0 rather than invent a figure (R10.4). Assuming 30 for 60 fps footage
+      doubles the apparent bpp and over-promises the saving — and three of the four
+      trial clips were 60 fps.
+- [ ] **R9.2 resume is not implemented.** No equivalent of `.compvdo-run.json`;
+      an interrupted batch restarts from the beginning. Not claimed in the
+      docstring, so this is a gap rather than a false claim.
+- [ ] **R11 preview is absent entirely.** No preview code anywhere. This was an
+      explicit item in the original brief for Android.
+- [ ] **MediaStore work runs on the main thread** (`createOutputUri` queries and
+      inserts, `getFileSize` opens a descriptor). ANR risk on a large library.
+- [ ] Dead code in `TransformerEngine.runTransformer`: a `getProgress()` call whose
+      result is discarded, and an empty `Transformer.Listener` added for nothing.
+      dev_guide.md §17 names the discarded-probe shape specifically.
+- [ ] `extractor.release()` is not in a `finally`, so it leaks on the exception path.
+- [ ] `nameExists()` queries `VOLUME_EXTERNAL` while the insert targets
+      `VOLUME_EXTERNAL_PRIMARY`. Harmless today (the query is a superset).
+
+### ✅ Correct and worth keeping
+
+- `ARCHIVE` mode is correctly **absent** from `CompressionMode`, with the reason
+  documented — matches the architecture decision (no FFV1 on MediaCodec).
+- R1.1/R1.2 output naming and collision handling via MediaStore are right,
+  including `IS_PENDING` and cleanup of the entry on failure.
+- R2.1 holds: the original is never opened for writing.
+- R7.2 holds: `grew` is detected and **blocks the delete** independently of
+  verification.
+- R9.3 holds: a per-file `try/catch` means one failure cannot abort the batch.
+- The verifier's sorted-dimension comparison is a sound adaptation of the
+  displayed-vs-coded rule.
+- Dependency choices are current and sensible; the stack matches the recorded
+  decision.
+
 ## Manual — Android (needs M3)
+- [ ] **Do NOT enable "Delete originals" until the trash bug above is fixed.**
+- [ ] Export actually succeeds on device (watch the `"w"` vs `"rw"` issue first)
 - [ ] Output appears in the gallery next to the original (R1.1)
 - [ ] Encode survives the screen locking
 - [ ] Cancel actually stops the Transformer job

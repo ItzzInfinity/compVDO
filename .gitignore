@@ -15,3 +15,14 @@ samples/
 testVideos/
 reports/
 dev_guide.md
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/app/local.properties
+*.apk
+*.aab
+build/
+.idea/

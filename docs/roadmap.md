@@ -61,14 +61,35 @@ python3 -m pytest -q && python3 -m compvdo --help >/dev/null
 - [x] 2b.4 Move docs into `docs/` — done 2026-09-20; root is README.md + two symlinks, everything else under docs/; scaffold still works with no --dir because those symlinks satisfy its hard-coded paths
 - [x] 2b.5 M4.1 decided — done 2026-09-20; visually-lossless HEVC stays the default, `archive` stays opt-in
 
-## Phase 3 — Android  ← next, per the user's ordering
+## Phase 3 — Android
+
 - [x] 3.0 Decide the Android stack: Kotlin/Compose vs Dart/Flutter — done 2026-09-20; Kotlin, because Flutter still needs a platform channel to Media3 and ffmpeg-kit's retirement removed its one advantage; rationale and the iOS condition that would reverse it are in `architecture.md`
-- [ ] 3.1 Confirm Media3 `Transformer` HEVC + CRF-equivalent story; write the findings into `architecture.md`
-- [ ] 3.2 Compose M3 skeleton: permissions, MediaStore video query, sortable list
-- [ ] 3.3 Transformer job runner with progress + cancel, foreground service
-- [ ] 3.4 Output naming (R1) via MediaStore, trash-based delete (R2.3)
-- [ ] 3.5 Batch queue + suggestion ranking, sharing the R10.3 arithmetic
-- [ ] 3.6 Build and trial on a device  ← needs M3
+- [x] 3.1 Evaluate MediaCodec / Media3 Transformer capabilities vs requirements — done 2026-09-20; no CRF on Android, so `QualityLadder` targets a fraction of the source bitrate (0.25/0.50/0.75) via `VideoEncoderSettings`; `ARCHIVE` correctly omitted (no FFV1 on MediaCodec)
+- [x] 3.2 Set up the Android project scaffold (Kotlin + Jetpack Compose) — done 2026-09-20; Gradle 8.11.1, compileSdk 35, minSdk 26, Media3 1.5.1; `assembleDebug` verified green on 2026-09-20 producing a 21 MB APK
+- [x] 3.3 Data model and MediaStore scanner (`VideoInfo`) — done 2026-09-20; MediaStore query with sort, `READ_MEDIA_VIDEO` requested in `HomeScreen`
+- [x] 3.4 Compression engine wrapping Media3 `Transformer` — done 2026-09-20; threading verified correct (driven from `Dispatchers.Main.immediate`, which is what Media3 requires); open defects tracked in 3.7–3.16
+- [x] 3.5 The UI (list, sortable, progress card, settings) — done 2026-09-20; Compose M3 across Home/Compress/Settings screens
+- [M] 3.6 Build and trial on a real device — **blocked on M3.** `assembleDebug` succeeds locally, but a build is not a trial: nothing has run on hardware yet. Reverted from `[x]` on 2026-09-20 after code validation.
+
+### Phase 3 follow-up — from the 2026-09-20 code validation
+
+Full findings, with the evidence for each, are in `qa-checklist.md`.
+
+**Blocking — data loss:**
+- [ ] 3.7 **The "trash" is a permanent delete (R2.3).** `BatchRunner.trashOriginal()` documents `createTrashRequest` and calls `contentResolver.delete()`. Use `MediaStore.createTrashRequest`, honour the returned `IntentSender`, and stop swallowing `RecoverableSecurityException`
+- [ ] 3.8 **R8.3 does not check playability** yet gates the delete as though it does — the verifier reads a track header and asserts `playable = true`
+- [ ] 3.9 Confirmation dialog before deleting originals, naming targets and defaulting to the safe button (dev_guide.md §12)
+
+**Significant:**
+- [ ] 3.10 Cancel does not stop the running file (R12.2) — the flag is only read between files, and nothing cancels the `Transformer`
+- [ ] 3.11 Open the output `"rw"`, not `"w"` — MP4 muxing must seek back to write `moov`
+- [ ] 3.12 Wire the foreground notification to real progress (`updateProgress` is never called) and request `POST_NOTIFICATIONS`
+
+**Divergences and gaps:**
+- [ ] 3.13 Align the R10.3 ranking with `plan.py` or correct the comment claiming parity; stop defaulting fps to 30 (R10.4)
+- [ ] 3.14 Move MediaStore work off the main thread
+- [ ] 3.15 Add a test source set — there is currently none
+- [ ] 3.16 R11 preview and R9.2 batch resume are both absent on Android
 
 ## Phase 4 — Windows
 - [ ] 4.1 Path/encoding audit of the core (no POSIX assumptions, long paths, UTF-16 names)

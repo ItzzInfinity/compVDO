@@ -1,0 +1,20 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!--
+       Android 13+ Themed Icon (Monochrome).
+       The OS automatically tints this entire vector pure white or pure black
+       based on Dark/Light mode and system theme settings.
+       Negative space (gaps) ensures details like the fold remain visible.
+    -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="
+            M 30,85 C 20,85 15,80 15,70 L 15,30 C 15,20 20,15 30,15 L 45,15 L 45,5 L 60,20 L 45,35 L 45,25 L 30,25 C 26,25 25,26 25,30 L 25,70 C 25,74 26,75 30,75 Z
+            M 65,15 L 85,35 L 85,70 C 85,80 80,85 70,85 L 55,85 L 55,95 L 40,80 L 55,65 L 55,75 L 70,75 C 74,75 75,74 75,70 L 75,35 L 65,35 Z
+            M 66,17 L 66,33 L 82,33 Z
+            M 40,36 L 62,50 L 40,64 Z
+        "/>
+</vector>

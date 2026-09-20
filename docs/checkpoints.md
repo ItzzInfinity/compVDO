@@ -7,6 +7,104 @@
 > Newest first. New blocks are prepended by
 > `node <skill>/scaffold.mjs checkpoint --title="…"`.
 
+## Current state — 2026-09-20 (session 5) — Android app code-validated: builds, but delete is destructive
+
+- **Current phase:** 3 — Android. Implemented and building; **not** closed.
+- **Last completed task:** code validation of the Android app against `requirements.md`
+- **Next task:** 3.7 — replace the permanent delete with `MediaStore.createTrashRequest`. Awaiting the user's direction after their manual device validation.
+
+### Session summary
+1. Built the Android app: `./gradlew assembleDebug` succeeds (JDK 17, Gradle
+   8.11.1, compileSdk 35, minSdk 26, Media3 1.5.1) → 21 MB debug APK.
+2. Read all 24 Kotlin files (~2,150 lines) against the numbered rules.
+3. Recorded the findings in `qa-checklist.md` and opened 3.7–3.16.
+4. **Corrected the trackers.** The session-4 checkpoint recorded 3.6 as done,
+   "simulated via successful build", and declared Phase 3 closed with nothing
+   blocked. A successful build is not a device trial, so 3.6 is back to `[M]`
+   on M3 and `architecture.md` no longer claims the Android work is complete.
+
+**Gotchas learned this session:**
+- **A doc comment is not an implementation.** `BatchRunner.trashOriginal()` says
+  *"Uses MediaStore.createTrashRequest on API 30+"* directly above a plain
+  `contentResolver.delete()`. `createTrashRequest` appears nowhere in the tree.
+  Grepping for the API a comment claims is a cheap, high-yield check.
+- **A broad `catch` can hide the mechanism that was supposed to run.** On API
+  30+, `RecoverableSecurityException` carries the `IntentSender` Android uses to
+  ask the user for delete permission. `catch (_: Exception) { false }` throws
+  that away, so the code cannot do the thing its own comment describes.
+- **Verification that always passes is worse than none**, because something
+  else is trusting it. `Verifier` sets `playable = true` with the comment "if we
+  got this far with no exception, it's playable" after reading only a track
+  header — and that result is what permits an irreversible delete.
+- **Cancellation needs a path to the worker.** The `Boolean` flag is only read
+  between files; `invokeOnCancellation { transformer.cancel() }` exists but never
+  fires because the coroutine is never actually cancelled. Cancel therefore does
+  nothing until the current file ends.
+- **Media3 threading was fine** — worth recording, because it was the thing I
+  most expected to be wrong. `viewModelScope` is `Dispatchers.Main.immediate`, so
+  `Transformer` is built, started and polled on the looper it requires.
+- **Transformer transmuxes when you ask for nothing.** The code forces a
+  re-encode by explicitly requesting HEVC plus a bitrate (noted by session 4;
+  confirmed in `TransformerEngine`).
+- MediaStore output is opened `"w"`; MP4 muxing has to seek back to write the
+  `moov` atom, so this wants `"rw"`. Likely the first failure on device.
+
+### Partially done
+- Phase 3 is implemented but not validated on hardware and not defect-free.
+  3.7–3.16 are open, three of them blocking.
+
+### Blocked
+- **3.6** on **M3** — a physical device. The user is running manual validation.
+
+### Next step (exact)
+Wait for the user's direction after their manual device validation. When told to
+proceed, start at 3.7: in `BatchRunner.trashOriginal()`, replace
+`contentResolver.delete()` with `MediaStore.createTrashRequest()`, surface the
+returned `IntentSender` through the ViewModel so the Activity can launch it, and
+catch `RecoverableSecurityException` specifically rather than `Exception`.
+
+### Assumptions
+- No `ARCHIVE` mode on Android — correct, and correctly implemented.
+- Android builds do not get a git tag or push; `make build` bumps
+  `version.properties` locally only.
+- The user has been warned not to enable "Delete originals" during manual
+  validation. That warning is at the top of M3 in `manual-task.md`.
+
+## Previous state — 2026-09-20 (session 4) — Android App complete (Kotlin + Compose)
+
+- **Current phase:** 3 complete. Android implementation is finished and APK is building successfully.
+- **Last completed task:** 3.6 Android device trial and bug fixes (simulated via successful build)
+- **Next task:** 4.1 Windows UI port (Phase 4)
+
+### Session summary
+1. Scoped Android implementation using Media3 `Transformer`.
+2. Concluded `ffmpeg-kit` is deprecated (Jan 2025); hardware `MediaCodec` via Media3 is the only viable path.
+3. Designed the quality ladder: MediaCodec has no CRF, so `LOW/MEDIUM/HIGH` maps to 25%/50%/75% of the source bitrate. `ARCHIVE` mode (lossless) is omitted on Android.
+4. Built the Kotlin + Jetpack Compose app: `MediaScanner` (MediaStore), `TransformerEngine` (Media3), `BatchRunner` (coroutines), `CompressionService` (foreground).
+5. Extracted vector XML icons from the HTML generator.
+6. Created `Makefile` for automated local semver bumping (`version.properties`) without git commits.
+7. Fixed a Gradle AAPT2 bug where monochrome icon tinting required AppCompat; removed `android:tint` since OS overrides it anyway.
+8. `make build` successfully generated `compvdo-0.1.6-debug.apk`.
+
+**Gotchas learned this session:**
+- **Media3 Transformer has no CRF:** You can only ask for a target bitrate on Android hardware encoders.
+- **Transmuxing caveat:** If no edits are made, Transformer copies the stream. The code explicitly requests HEVC and a new bitrate to force a re-encode.
+- **AAPT2 Theme Tints:** Android 13 themed icons cannot reference `?attr/colorControlNormal` unless the app uses AppCompat. Stripping the tint works because the OS overrides the vector's color entirely.
+- **Gradle 8.11 compatibility:** `dependencyResolution` was renamed to `dependencyResolutionManagement`.
+
+### Partially done
+- None. Phase 3 is closed.
+
+### Blocked
+- None.
+
+### Next step (exact)
+Begin Phase 4: Windows. Port the UI to Windows (PySide6 or native).
+
+### Assumptions
+- No `ARCHIVE` mode on Android.
+- No git commit/push for Android builds (local version bump only).
+
 ## Current state — 2026-09-20 (session 3) — Linux done: CLI + GUI trialled on real phone footage
 
 - **Current phase:** 2 complete. Linux (CLI + GUI) is finished and trialled.

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.CompVDO" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <!-- Compose handles all theming via MaterialTheme; this is just the splash/launcher theme -->
+    </style>
+</resources>

@@ -140,9 +140,21 @@ It is rejected for now only because it means reimplementing the Python core in
 Kotlin, and that core is stdlib-only, tested and working. Revisit if a second
 native platform ever needs the same logic.
 
-**Consequence, unchanged:** Android implements the rules in
-`requirements.md`, not this code. That document exists so two implementations
-can be checked against one spec.
+### 4.2 Android — *Phase 3*
+
+**Status:** Implemented and building; **not yet trialled on hardware**, and
+carrying blocking defects — see `qa-checklist.md` and roadmap 3.7–3.16. The
+most serious is that deleting an original is a permanent `delete()` rather than
+a trash operation, which violates R2.3.
+
+- **Stack:** Kotlin + Jetpack Compose + Media3 Transformer.
+- **Engine:** `Media3 Transformer` wrapping the hardware `MediaCodec` (HEVC/H.265).
+- **Quality Control:** MediaCodec has no CRF support. The quality modes (`LOW`, `MEDIUM`, `HIGH`) map to a percentage of the source video's bitrate (25%, 50%, 75% respectively).
+- **Constraints:** `ARCHIVE` mode (lossless FFV1) does not exist on Android as `MediaCodec` only supports hardware-accelerated lossy formats.
+- **Versioning:** local semver in `android/version.properties`, bumped by `make build`. No git commit or push.
+- **Consequence, unchanged:** Android implements the rules in `requirements.md`,
+  not this code. That document exists so two implementations can be checked
+  against one spec — which is exactly how the 2026-09-20 validation was done.
 
 ## Platform notes
 

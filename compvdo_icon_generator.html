@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>compVDO Icon Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom scrollbar for textareas */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        textarea::-webkit-scrollbar-track {
+            background: #1e293b;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 4px;
+        }
+        textarea::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen font-sans antialiased flex flex-col selection:bg-emerald-500 selection:text-white">
+
+    <header class="border-b border-slate-800 bg-slate-900/50 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg" id="header-logo">
+                    <!-- SVG injected here -->
+                </div>
+                <h1 class="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400">
+                    compVDO <span class="font-normal text-slate-500">Icon Generator</span>
+                </h1>
+            </div>
+            <div class="text-sm text-slate-400">
+                Material Theme Ready
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- LEFT COLUMN: Previews -->
+            <div class="lg:col-span-5 space-y-6">
+                
+                <!-- Main Icon Preview -->
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col items-center shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-600 to-emerald-500"></div>
+                    
+                    <div class="w-full flex justify-between items-center mb-8">
+                        <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400">Live Preview</h2>
+                        
+                        <!-- Theme Toggles -->
+                        <div class="flex bg-slate-800 rounded-full p-1 border border-slate-700">
+                            <button onclick="changeTheme('light')" class="w-6 h-6 rounded-full bg-white shadow-sm hover:scale-110 transition-transform" title="Light Mode"></button>
+                            <button onclick="changeTheme('dark')" class="w-6 h-6 rounded-full bg-slate-800 border border-slate-600 ml-2 hover:scale-110 transition-transform" title="Dark Mode"></button>
+                            <button onclick="changeTheme('brand')" class="w-6 h-6 rounded-full bg-gradient-to-br from-blue-100 to-emerald-100 ml-2 hover:scale-110 transition-transform" title="Brand Mode"></button>
+                        </div>
+                    </div>
+
+                    <!-- The Rendered SVG Container -->
+                    <div id="main-preview-container" class="w-64 h-64 bg-white flex items-center justify-center rounded-[2rem] shadow-xl transition-colors duration-500 p-6">
+                        <div id="svg-render-target" class="w-full h-full drop-shadow-md transition-all duration-300 hover:scale-105">
+                            <!-- SVG is injected via JS -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Android Context Mockup -->
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl p-6 flex flex-col items-center">
+                    <h2 class="text-sm font-semibold uppercase tracking-wider text-slate-400 mb-6 w-full text-left">Android Adaptive Mockup</h2>
+                    
+                    <div class="w-64 h-[400px] border-[6px] border-slate-800 rounded-[2.5rem] bg-slate-950 p-4 relative overflow-hidden shadow-inner">
+                        <!-- Status Bar -->
+                        <div class="flex justify-between items-center text-[10px] text-slate-400 mb-8 px-2 mt-1">
+                            <span>12:00</span>
+                            <div class="flex space-x-1">
+                                <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+                                <div class="w-2 h-2 rounded-full bg-slate-400"></div>
+                            </div>
+                        </div>
+
+                        <!-- App Grid -->
+                        <div class="grid grid-cols-4 gap-x-2 gap-y-6 px-1">
+                            <!-- Dummy Apps -->
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                            
+                            <!-- Dummy Apps -->
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                            
+                            <!-- Our CompVDO App -->
+                            <div class="flex flex-col items-center gap-1 cursor-pointer group">
+                                <div class="w-10 h-10 bg-white rounded-[14px] flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform" id="mockup-icon-target">
+                                    <!-- SVG injected here -->
+                                </div>
+                                <span class="text-[9px] text-slate-300 font-medium tracking-wide">compVDO</span>
+                            </div>
+
+                            <!-- Dummy Apps -->
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                            <div class="flex flex-col items-center gap-1"><div class="w-10 h-10 bg-slate-800 rounded-2xl"></div><div class="h-2 w-8 bg-slate-800 rounded"></div></div>
+                        </div>
+
+                        <!-- Home Indicator -->
+                        <div class="absolute bottom-2 inset-x-0 flex justify-center">
+                            <div class="w-20 h-1 bg-slate-700 rounded-full"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- RIGHT COLUMN: Code & Actions -->
+            <div class="lg:col-span-7 flex flex-col space-y-6">
+                
+                <!-- Action Buttons -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <button onclick="downloadSVG()" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-2 transition-all hover:border-slate-500 hover:shadow-lg shadow-black/50 group">
+                        <svg class="w-8 h-8 text-blue-400 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        <span class="font-semibold text-sm">Download SVG</span>
+                        <span class="text-[10px] text-slate-400 font-normal">Vector (Auto Dark Mode)</span>
+                    </button>
+                    
+                    <button onclick="downloadXML()" class="bg-gradient-to-b from-emerald-600 to-emerald-800 hover:from-emerald-500 hover:to-emerald-700 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-2 transition-all hover:shadow-[0_0_20px_rgba(16,185,129,0.3)] border border-emerald-500/50 group">
+                        <svg class="w-8 h-8 text-emerald-100 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                        <span class="font-semibold text-sm">Color Android XML</span>
+                        <span class="text-[10px] text-emerald-200/80 font-normal">Standard Adaptive Icon</span>
+                    </button>
+
+                    <button onclick="downloadMonochromeXML()" class="bg-gradient-to-b from-slate-700 to-slate-900 hover:from-slate-600 hover:to-slate-800 text-white rounded-2xl py-4 flex flex-col items-center justify-center gap-2 transition-all hover:shadow-[0_0_20px_rgba(255,255,255,0.1)] border border-slate-500/50 group">
+                        <svg class="w-8 h-8 text-slate-300 group-hover:-translate-y-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg>
+                        <span class="font-semibold text-sm">Themed XML</span>
+                        <span class="text-[10px] text-slate-300/80 font-normal">Android 13+ (System Invert)</span>
+                    </button>
+                </div>
+
+                <!-- Code Viewers -->
+                <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden flex-grow flex flex-col shadow-xl">
+                    <!-- Tabs -->
+                    <div class="flex border-b border-slate-800 bg-slate-900/80 overflow-x-auto">
+                        <button id="btn-xml" onclick="switchTab('xml')" class="px-5 py-4 text-xs font-medium border-b-2 border-emerald-500 text-emerald-400 transition-colors whitespace-nowrap">
+                            Color Vector (XML)
+                        </button>
+                        <button id="btn-mono-xml" onclick="switchTab('mono-xml')" class="px-5 py-4 text-xs font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+                            Themed Vector (XML)
+                        </button>
+                        <button id="btn-svg" onclick="switchTab('svg')" class="px-5 py-4 text-xs font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap">
+                            Raw SVG Code
+                        </button>
+                    </div>
+
+                    <!-- XML Tab Content -->
+                    <div id="tab-xml" class="p-4 flex-grow flex flex-col relative h-[500px]">
+                        <button id="copy-btn-xml-code" onclick="copyToClipboard('xml-code')" class="absolute top-6 right-6 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-1.5 rounded-lg transition-colors z-10 flex items-center gap-1 text-slate-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Copy XML
+                        </button>
+                        <textarea id="xml-code" readonly class="w-full h-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-emerald-300 focus:outline-none resize-none shadow-inner"></textarea>
+                    </div>
+
+                    <!-- Monochrome XML Tab Content -->
+                    <div id="tab-mono-xml" class="p-4 flex-grow flex flex-col relative hidden h-[500px]">
+                        <button id="copy-btn-mono-xml-code" onclick="copyToClipboard('mono-xml-code')" class="absolute top-6 right-6 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-1.5 rounded-lg transition-colors z-10 flex items-center gap-1 text-slate-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Copy Themed XML
+                        </button>
+                        <textarea id="mono-xml-code" readonly class="w-full h-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-slate-300 focus:outline-none resize-none shadow-inner"></textarea>
+                    </div>
+
+                    <!-- SVG Tab Content -->
+                    <div id="tab-svg" class="p-4 flex-grow flex flex-col relative hidden h-[500px]">
+                        <button id="copy-btn-svg-code" onclick="copyToClipboard('svg-code')" class="absolute top-6 right-6 bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs px-3 py-1.5 rounded-lg transition-colors z-10 flex items-center gap-1 text-slate-300">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            Copy SVG
+                        </button>
+                        <textarea id="svg-code" readonly class="w-full h-full bg-slate-950 border border-slate-800 rounded-xl p-4 font-mono text-xs text-blue-300 focus:outline-none resize-none shadow-inner"></textarea>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        const svgContent = `<svg id="compvdo-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="100%" height="100%">
+  <style>
+    .arr-green { fill: #00C853; transition: fill 0.4s ease; }
+    .arr-blue { fill: #0277BD; transition: fill 0.4s ease; }
+    .fold-tri { fill: #01579B; transition: fill 0.4s ease; }
+    .play-btn { fill: #1976D2; transition: fill 0.4s ease; }
+    
+    /* Native Web Dark Mode - Inverts/Brightens colors automatically */
+    @media (prefers-color-scheme: dark) {
+      svg:not(.force-light) .arr-green { fill: #69F0AE; }
+      svg:not(.force-light) .arr-blue { fill: #4FC3F7; }
+      svg:not(.force-light) .fold-tri { fill: #0288D1; }  
+      svg:not(.force-light) .play-btn { fill: #81D4FA; }
+    }
+    
+    /* Manual Theme Overrides (For Interactive Preview) */
+    svg.force-dark .arr-green { fill: #69F0AE; }
+    svg.force-dark .arr-blue { fill: #4FC3F7; }
+    svg.force-dark .fold-tri { fill: #0288D1; }  
+    svg.force-dark .play-btn { fill: #81D4FA; }
+  </style>
+  
+  <!-- Green Arrow (Top Left Document Edge) -->
+  <path class="arr-green" d="M 30,85 C 20,85 15,80 15,70 L 15,30 C 15,20 20,15 30,15 L 45,15 L 45,5 L 60,20 L 45,35 L 45,25 L 30,25 C 26,25 25,26 25,30 L 25,70 C 25,74 26,75 30,75 Z" />
+  
+  <!-- Blue Arrow (Bottom Right Document Edge) -->
+  <path class="arr-blue" d="M 65,15 L 85,35 L 85,70 C 85,80 80,85 70,85 L 55,85 L 55,95 L 40,80 L 55,65 L 55,75 L 70,75 C 74,75 75,74 75,70 L 75,35 L 65,35 Z" />
+  
+  <!-- Fold Triangle (With Negative Space Gap) -->
+  <path class="fold-tri" d="M 66,17 L 66,33 L 82,33 Z" />
+  
+  <!-- Central Play Button -->
+  <path class="play-btn" d="M 40,36 L 62,50 L 40,64 Z" />
+</svg>`;
+
+        const xmlContent = `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Green Arrow (Top Left) -->
+    <path android:fillColor="#00C853" android:pathData="M 30,85 C 20,85 15,80 15,70 L 15,30 C 15,20 20,15 30,15 L 45,15 L 45,5 L 60,20 L 45,35 L 45,25 L 30,25 C 26,25 25,26 25,30 L 25,70 C 25,74 26,75 30,75 Z" />
+    
+    <!-- Blue Arrow (Bottom Right) -->
+    <path android:fillColor="#0277BD" android:pathData="M 65,15 L 85,35 L 85,70 C 85,80 80,85 70,85 L 55,85 L 55,95 L 40,80 L 55,65 L 55,75 L 70,75 C 74,75 75,74 75,70 L 75,35 L 65,35 Z" />
+    
+    <!-- Fold Triangle -->
+    <path android:fillColor="#01579B" android:pathData="M 66,17 L 66,33 L 82,33 Z" />
+    
+    <!-- Center Play Button -->
+    <path android:fillColor="#1976D2" android:pathData="M 40,36 L 62,50 L 40,64 Z" />
+</vector>`;
+
+        const monochromeXmlContent = `<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100"
+    android:tint="?attr/colorControlNormal">
+    <!-- 
+       Android 13+ Themed Icon (Monochrome). 
+       The OS automatically tints this entire vector pure white or pure black 
+       based on Dark/Light mode and system theme settings. 
+       Negative space (gaps) ensures details like the fold remain visible. 
+    -->
+    <path
+        android:fillColor="#FF000000"
+        android:pathData="
+            M 30,85 C 20,85 15,80 15,70 L 15,30 C 15,20 20,15 30,15 L 45,15 L 45,5 L 60,20 L 45,35 L 45,25 L 30,25 C 26,25 25,26 25,30 L 25,70 C 25,74 26,75 30,75 Z
+            M 65,15 L 85,35 L 85,70 C 85,80 80,85 70,85 L 55,85 L 55,95 L 40,80 L 55,65 L 55,75 L 70,75 C 74,75 75,74 75,70 L 75,35 L 65,35 Z
+            M 66,17 L 66,33 L 82,33 Z
+            M 40,36 L 62,50 L 40,64 Z
+        "/>
+</vector>`;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Inject SVGs into UI
+            document.getElementById('svg-render-target').innerHTML = svgContent;
+            document.getElementById('mockup-icon-target').innerHTML = `<div style="width: 70%; height: 70%;">${svgContent}</div>`;
+            document.getElementById('header-logo').innerHTML = `<div style="width: 60%; height: 60%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3)); stroke: white; stroke-width: 1px;">${svgContent}</div>`;
+            
+            // Populate Textareas
+            document.getElementById('svg-code').value = svgContent;
+            document.getElementById('xml-code').value = xmlContent;
+            document.getElementById('mono-xml-code').value = monochromeXmlContent;
+        });
+
+        function switchTab(tabId) {
+            // Hide all contents
+            document.getElementById('tab-svg').classList.add('hidden');
+            document.getElementById('tab-xml').classList.add('hidden');
+            document.getElementById('tab-mono-xml').classList.add('hidden');
+            
+            // Reset button states
+            const inactiveClass = "px-5 py-4 text-xs font-medium border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition-colors whitespace-nowrap";
+            document.getElementById('btn-svg').className = inactiveClass;
+            document.getElementById('btn-xml').className = inactiveClass;
+            document.getElementById('btn-mono-xml').className = inactiveClass;
+
+            // Activate requested tab
+            const activeClass = "px-5 py-4 text-xs font-medium border-b-2 border-emerald-500 text-emerald-400 transition-colors whitespace-nowrap";
+            if (tabId === 'svg') {
+                document.getElementById('tab-svg').classList.remove('hidden');
+                document.getElementById('btn-svg').className = activeClass;
+            } else if (tabId === 'xml') {
+                document.getElementById('tab-xml').classList.remove('hidden');
+                document.getElementById('btn-xml').className = activeClass;
+            } else {
+                document.getElementById('tab-mono-xml').classList.remove('hidden');
+                document.getElementById('btn-mono-xml').className = activeClass;
+            }
+        }
+
+        function changeTheme(theme) {
+            const container = document.getElementById('main-preview-container');
+            const svgEl = document.querySelector('#svg-render-target svg');
+            
+            // Base classes
+            container.className = 'w-64 h-64 flex items-center justify-center rounded-[2rem] shadow-xl transition-colors duration-500 p-6';
+            svgEl.classList.remove('force-dark', 'force-light');
+            
+            if (theme === 'light') {
+                container.classList.add('bg-white');
+                svgEl.classList.add('force-light');
+            } else if (theme === 'dark') {
+                container.classList.add('bg-slate-800');
+                svgEl.classList.add('force-dark');
+            } else if (theme === 'brand') {
+                container.classList.add('bg-gradient-to-br', 'from-blue-100', 'to-emerald-100');
+                svgEl.classList.add('force-light');
+            }
+        }
+
+        function downloadFile(filename, content, mimeType) {
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadSVG() {
+            downloadFile('ic_compvdo_logo_responsive.svg', svgContent, 'image/svg+xml');
+        }
+
+        function downloadXML() {
+            downloadFile('ic_compvdo_color.xml', xmlContent, 'text/xml');
+        }
+
+        function downloadMonochromeXML() {
+            // Instruct user about placement for Android 13+ support
+            downloadFile('ic_compvdo_monochrome.xml', monochromeXmlContent, 'text/xml');
+        }
+
+        function copyToClipboard(elementId) {
+            const textElement = document.getElementById(elementId);
+            textElement.select();
+            textElement.setSelectionRange(0, 99999); // For mobile devices
+            
+            navigator.clipboard.writeText(textElement.value).then(() => {
+                const btn = document.getElementById('copy-btn-' + elementId);
+                const originalHTML = btn.innerHTML;
+                
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                btn.classList.add('bg-emerald-600', 'text-white', 'border-emerald-500');
+                btn.classList.remove('bg-slate-800', 'text-slate-300', 'border-slate-700');
+                
+                setTimeout(() => {
+                    btn.innerHTML = originalHTML;
+                    btn.classList.remove('bg-emerald-600', 'text-white', 'border-emerald-500');
+                    btn.classList.add('bg-slate-800', 'text-slate-300', 'border-slate-700');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>
